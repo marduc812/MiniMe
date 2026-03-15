@@ -1,7 +1,7 @@
 <div>
   <img width="150" height="150" align="left" src="assets/small_logo.png" alt=""/>
   <br>
-  <h1>Kimeno</h1>
+  <h1>MiniMe</h1>
   <p>A lightweight macOS menu bar OCR utility that captures screen areas and extracts text using Apple's Vision framework.</p>
 </div>
 
@@ -50,14 +50,14 @@ git clone https://github.com/yourusername/kimeno.git
 cd kimeno
 
 # Build release version
-xcodebuild -project kimeno.xcodeproj -scheme kimeno -configuration Release
+xcodebuild -project MiniMe.xcodeproj -scheme MiniMe -configuration Release
 
-# The built app will be in build/Release/kimeno.app
+# The built app will be in build/Release/MiniMe.app
 ```
 
 ## Usage
 
-1. **Launch Kimeno** - The app appears as "κ" in your menu bar
+1. Launch MiniMe - The app appears as "κ" in your menu bar
 2. **Capture Text** - Press the capture shortcut (default: `⌘⇧2`) or click "Capture" from the menu
 3. **Select Area** - Click and drag to select the screen region containing text
 4. **Done** - Text is extracted and copied to your clipboard automatically
@@ -91,7 +91,7 @@ Customize global hotkeys for capture and history access.
 
 ## Permissions
 
-Kimeno requires the following permissions:
+MiniMe requires the following permissions:
 
 | Permission | Purpose |
 |------------|---------|
@@ -100,13 +100,13 @@ Kimeno requires the following permissions:
 
 On first launch, macOS will prompt you to grant these permissions. You can also enable them manually:
 
-1. Open **System Settings** > **Privacy & Security** > **Screen Recording** and enable **Kimeno**
-2. Open **System Settings** > **Privacy & Security** > **Accessibility** and enable **Kimeno**
+1. Open **System Settings** > **Privacy & Security** > **Screen Recording** and enable **MiniMe**
+2. Open **System Settings** > **Privacy & Security** > **Accessibility** and enable **MiniMe**
 
 ## Project Structure
 
 ```
-kimeno/
+MiniMe/
 ├── App/                    # App entry point
 ├── Managers/               # Core business logic
 │   ├── ScreenCaptureManager.swift
@@ -125,9 +125,9 @@ kimeno/
 
 ```bash
 # Unit tests
-xcodebuild -project kimeno.xcodeproj -scheme kimeno test
+xcodebuild -project MiniMe.xcodeproj -scheme MiniMe test
 
 # UI tests
-xcodebuild -project kimeno.xcodeproj -scheme kimeno -destination 'platform=macOS' test
+xcodebuild -project MiniMe.xcodeproj -scheme MiniMe -destination 'platform=macOS' test
 ```
 
