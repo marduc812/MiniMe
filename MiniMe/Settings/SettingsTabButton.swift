@@ -10,18 +10,26 @@ struct SettingsTabButton: View {
     let icon: String
     let color: Color
     let isSelected: Bool
+    var badge: Bool = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 5) {
-                ZStack {
+                ZStack(alignment: .topTrailing) {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(isSelected ? color : Color.secondary.opacity(0.12))
                         .frame(width: 32, height: 32)
                     Image(systemName: icon)
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(isSelected ? .white : .secondary)
+                        .frame(width: 32, height: 32)
+                    if badge {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 8, height: 8)
+                            .offset(x: 3, y: -3)
+                    }
                 }
                 Text(title)
                     .font(.system(size: 11, weight: isSelected ? .semibold : .regular))

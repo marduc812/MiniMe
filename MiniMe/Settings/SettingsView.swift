@@ -8,6 +8,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var settings: SettingsManager
     @ObservedObject var hotkeyManager: HotkeyManager
+    @ObservedObject var updateManager: UpdateManager
     @State private var selectedTab = 0
 
     var body: some View {
@@ -56,7 +57,8 @@ struct SettingsView: View {
                     title: "About",
                     icon: "info.circle.fill",
                     color: Color(.systemGray),
-                    isSelected: selectedTab == 4
+                    isSelected: selectedTab == 4,
+                    badge: updateManager.updateAvailable
                 ) {
                     withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 4 }
                 }
@@ -81,7 +83,7 @@ struct SettingsView: View {
                 case 3:
                     ShortcutsSettingsView(settings: settings)
                 default:
-                    AboutSettingsView()
+                    AboutSettingsView(updateManager: updateManager)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

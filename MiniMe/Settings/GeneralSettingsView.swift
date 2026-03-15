@@ -29,6 +29,19 @@ struct GeneralSettingsView: View {
                 }
             }
 
+            Section("System") {
+                HStack(spacing: 10) {
+                    SettingsRowIcon(systemName: "moon.zzz.fill", color: .indigo)
+                    Toggle("Prevent sleep", isOn: Binding(
+                        get: { settings.activeSleepDuration != nil },
+                        set: { enabled in
+                            if enabled { settings.enablePreventSleep(.infinite) }
+                            else { settings.disablePreventSleep() }
+                        }
+                    ))
+                }
+            }
+
             Section {
                 Button("Reset All Shortcuts to Defaults") {
                     settings.resetToDefaults()

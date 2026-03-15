@@ -42,6 +42,7 @@ struct MiniMeApp: App {
     @StateObject private var hotkeyManager = HotkeyManager()
     @StateObject private var textPreviewManager = TextPreviewManager()
     @StateObject private var onboardingManager = OnboardingManager()
+    @StateObject private var updateManager = UpdateManager()
     @ObservedObject private var typingService = TypingService.shared
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @State private var hasSetupHotkeys = false
@@ -57,7 +58,8 @@ struct MiniMeApp: App {
                 historyStore: historyStore,
                 settingsManager: settingsManager,
                 hotkeyManager: hotkeyManager,
-                textPreviewManager: textPreviewManager
+                textPreviewManager: textPreviewManager,
+                updateManager: updateManager
             )
         } label: {
             if let count = typingService.countdown {
@@ -101,6 +103,7 @@ struct MiniMeApp: App {
                 hasSetupHotkeys = true
                 setupHotkeys()
                 setupAppDelegate()
+                Task { await updateManager.checkForUpdatesIfNeeded() }
                 NotificationCenter.default.addObserver(
                     forName: .appShouldShowMenu,
                     object: nil,
@@ -175,7 +178,7 @@ struct MiniMeApp: App {
             self.textPreviewManager.closePreviewWindow()
             self.historyStore.closeHistoryWindow()
             NSApp.activate(ignoringOtherApps: true)
-            self.settingsManager.showSettingsWindow(hotkeyManager: self.hotkeyManager)
+            self.settingsManager.showSettingsWindow(hotkeyManager: self.hotkeyManager, updateManager: self.updateManager)
         }
     }
 
@@ -254,6 +257,7 @@ struct MenuContentView: View {
     @ObservedObject var settingsManager: SettingsManager
     @ObservedObject var hotkeyManager: HotkeyManager
     @ObservedObject var textPreviewManager: TextPreviewManager
+    @ObservedObject var updateManager: UpdateManager
 
     var body: some View {
         Group {
@@ -292,12 +296,42 @@ struct MenuContentView: View {
 
             Divider()
 
+            Menu {
+                ForEach(SleepDuration.allCases) { duration in
+                    Button {
+                        settingsManager.enablePreventSleep(duration)
+                    } label: {
+                        if settingsManager.activeSleepDuration == duration {
+                            Label(duration.rawValue, systemImage: "checkmark")
+                        } else {
+                            Text(duration.rawValue)
+                        }
+                    }
+                }
+            } label: {
+                if let active = settingsManager.activeSleepDuration {
+                    Label("Prevent Sleep (\(active.rawValue))", systemImage: "moon.zzz.fill")
+                } else {
+                    Label("Prevent Sleep", systemImage: "moon.zzz")
+                }
+            }
+
+            if settingsManager.activeSleepDuration != nil {
+                Button {
+                    settingsManager.disablePreventSleep()
+                } label: {
+                    Label("Turn Off Prevent Sleep", systemImage: "moon.fill")
+                }
+            }
+
+            Divider()
+
             Button {
                 DispatchQueue.main.async {
                     textPreviewManager.closePreviewWindow()
                     NSApp.activate(ignoringOtherApps: true)
                     historyStore.closeHistoryWindow()
-                    settingsManager.showSettingsWindow(hotkeyManager: hotkeyManager)
+                    settingsManager.showSettingsWindow(hotkeyManager: hotkeyManager, updateManager: updateManager)
                 }
             } label: {
                 Label("Settings...", systemImage: "gearshape")

@@ -5,6 +5,31 @@
 
 import SwiftUI
 import ServiceManagement
+import IOKit.pwr_mgt
+
+enum SleepDuration: String, CaseIterable, Identifiable {
+    case tenMinutes   = "10 minutes"
+    case thirtyMinutes = "30 minutes"
+    case oneHour      = "1 hour"
+    case twoHours     = "2 hours"
+    case fourHours    = "4 hours"
+    case eightHours   = "8 hours"
+    case infinite     = "Infinite"
+
+    var id: String { rawValue }
+
+    var seconds: TimeInterval? {
+        switch self {
+        case .tenMinutes:    return 600
+        case .thirtyMinutes: return 1800
+        case .oneHour:       return 3600
+        case .twoHours:      return 7200
+        case .fourHours:     return 14400
+        case .eightHours:    return 28800
+        case .infinite:      return nil
+        }
+    }
+}
 
 @MainActor
 class SettingsManager: ObservableObject {
@@ -41,6 +66,41 @@ class SettingsManager: ObservableObject {
     }
     @Published var typeItShortcut: CustomShortcut {
         didSet { saveShortcuts() }
+    }
+
+    @Published private(set) var activeSleepDuration: SleepDuration? = nil
+    private var sleepAssertionID: IOPMAssertionID = .zero
+    private var sleepTimer: Timer?
+
+    func enablePreventSleep(_ duration: SleepDuration) {
+        // Release any existing assertion first
+        disablePreventSleep()
+
+        let result = IOPMAssertionCreateWithName(
+            kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
+            IOPMAssertionLevel(kIOPMAssertionLevelOn),
+            "MiniMe: Prevent Sleep" as CFString,
+            &sleepAssertionID
+        )
+        guard result == kIOReturnSuccess else { return }
+
+        activeSleepDuration = duration
+
+        if let seconds = duration.seconds {
+            sleepTimer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) { [weak self] _ in
+                Task { @MainActor [weak self] in self?.disablePreventSleep() }
+            }
+        }
+    }
+
+    func disablePreventSleep() {
+        sleepTimer?.invalidate()
+        sleepTimer = nil
+        if sleepAssertionID != .zero {
+            IOPMAssertionRelease(sleepAssertionID)
+            sleepAssertionID = .zero
+        }
+        activeSleepDuration = nil
     }
 
     private var settingsWindow: NSWindow?
@@ -86,14 +146,14 @@ class SettingsManager: ObservableObject {
         typeItShortcut = .defaultTypeIt
     }
 
-    func showSettingsWindow(hotkeyManager: HotkeyManager) {
+    func showSettingsWindow(hotkeyManager: HotkeyManager, updateManager: UpdateManager) {
         if let existingWindow = settingsWindow, existingWindow.isVisible {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        let settingsView = SettingsView(settings: self, hotkeyManager: hotkeyManager)
+        let settingsView = SettingsView(settings: self, hotkeyManager: hotkeyManager, updateManager: updateManager)
         let hostingController = NSHostingController(rootView: settingsView)
 
         let window = NSWindow(contentViewController: hostingController)
