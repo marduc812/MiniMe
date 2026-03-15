@@ -22,7 +22,7 @@ class UpdateManager: ObservableObject {
     private let repoOwner = "marduc812"
     private let repoName  = "kimeno"
 
-    /// Called on launch — skips fetch if checked within the last 24 hours.
+    /// Called on launch - skips fetch if checked within the last 24 hours.
     func checkForUpdatesIfNeeded() async {
         let lastCheck = UserDefaults.standard.object(forKey: "lastUpdateCheck") as? Date
         if let lastCheck, Date().timeIntervalSince(lastCheck) < 86400 { return }
@@ -56,7 +56,7 @@ class UpdateManager: ObservableObject {
                 releaseURL = URL(string: htmlURL)
             }
         } catch {
-            // Non-critical — silently ignore network errors
+            // Non-critical - silently ignore network errors
         }
     }
 

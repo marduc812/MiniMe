@@ -39,6 +39,7 @@ class SettingsManager: ObservableObject {
     @AppStorage("lineAwareOCR") var lineAwareOCR = true
     @AppStorage("ocrAccuracy") var ocrAccuracy = "accurate"
     @AppStorage("typeItCountdownDuration") var typeItCountdownDuration = 5
+    @AppStorage("typeItCountdownSound") var typeItCountdownSound = true
 
     var launchAtLogin: Bool {
         get {

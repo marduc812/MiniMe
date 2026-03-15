@@ -13,17 +13,19 @@ struct TypeItSettingsView: View {
             Section("Behaviour") {
                 HStack(spacing: 10) {
                     SettingsRowIcon(systemName: "timer", color: .purple)
-                    Stepper(
-                        value: $settings.typeItCountdownDuration,
-                        in: 1...10
-                    ) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Countdown before typing")
-                            Text("\(settings.typeItCountdownDuration) second\(settings.typeItCountdownDuration == 1 ? "" : "s")")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    Text("Countdown before typing")
+                    Spacer()
+                    Picker("", selection: $settings.typeItCountdownDuration) {
+                        ForEach(1...10, id: \.self) { seconds in
+                            Text("\(seconds)s").tag(seconds)
                         }
                     }
+                    .labelsHidden()
+                    .frame(width: 70)
+                }
+                HStack(spacing: 10) {
+                    SettingsRowIcon(systemName: "speaker.wave.2.fill", color: .purple)
+                    Toggle("Sound on countdown", isOn: $settings.typeItCountdownSound)
                 }
             }
 

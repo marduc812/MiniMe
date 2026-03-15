@@ -66,13 +66,12 @@ struct MiniMeApp: App {
                 Text("\(count)")
                     .font(.system(size: 14, weight: .bold).monospacedDigit())
             } else {
-                HStack(spacing: 0) {
-                    Text("M")
-                        .font(.system(size: 9, weight: .medium))
-                        .baselineOffset(-2)
-                    Text("M")
-                        .font(.system(size: 14, weight: .medium))
-                }
+                Image(nsImage: {
+                    let img = NSImage(named: "MenuBarIcon") ?? NSImage()
+                    img.isTemplate = true
+                    img.size = NSSize(width: 16, height: 16)
+                    return img
+                }())
             }
         }
         .menuBarExtraStyle(.menu)

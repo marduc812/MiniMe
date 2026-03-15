@@ -5,11 +5,25 @@
 
 import AppKit
 import ApplicationServices
+import AVFoundation
 import Combine
 
 class TypingService: ObservableObject {
     static let shared = TypingService()
     private init() {}
+
+    private var tickPlayers: [AVAudioPlayer] = []
+
+    private func playTick() {
+        let soundEnabled = UserDefaults.standard.object(forKey: "typeItCountdownSound") as? Bool ?? true
+        guard soundEnabled,
+              let url = Bundle.main.url(forResource: "countdown", withExtension: "mp3") else { return }
+        guard let player = try? AVAudioPlayer(contentsOf: url) else { return }
+        player.volume = 0.7
+        player.prepareToPlay()
+        player.play()
+        tickPlayers.append(player)
+    }
 
     @Published var countdown: Int? = nil
 
@@ -35,13 +49,19 @@ class TypingService: ObservableObject {
         let duration = (1...10).contains(stored) ? stored : 5
 
         countdown = duration
+        playTick()
         for i in 1..<duration {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i)) {
                 self.countdown = duration - i
+                self.playTick()
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + Double(duration)) {
             self.countdown = nil
+        }
+        // Clean up players after they've had time to finish
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(duration) + 2.0) {
+            self.tickPlayers.removeAll()
         }
 
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + Double(duration)) {

@@ -19,15 +19,12 @@ struct AboutSettingsView: View {
         VStack(spacing: 16) {
             Spacer()
 
-            Text("κ")
-                .font(.system(size: 64, weight: .light))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.accentColor, .accentColor.opacity(0.6)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+            Image("MenuBarIcon")
+                .resizable()
+                .renderingMode(.template)
+                .scaledToFit()
+                .frame(width: 64, height: 64)
+                .foregroundStyle(.primary)
 
             VStack(spacing: 6) {
                 Text("MiniMe")
@@ -41,7 +38,7 @@ struct AboutSettingsView: View {
                     .background(.ultraThinMaterial, in: Capsule())
             }
 
-            // Status area — fixed height to prevent layout jumps
+            // Status area - fixed height to prevent layout jumps
             ZStack {
                 // Update available banner
                 if updateManager.updateAvailable, let latest = updateManager.latestVersion {
@@ -87,10 +84,10 @@ struct AboutSettingsView: View {
                 if showUpToDate {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.green)
                         Text("You're up to date")
                             .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.green)
                     }
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.95).combined(with: .opacity),
@@ -104,11 +101,17 @@ struct AboutSettingsView: View {
             .animation(.easeInOut(duration: 0.25), value: updateManager.updateAvailable)
             .animation(.easeInOut(duration: 0.25), value: showUpToDate)
 
-            Text("A simple OCR tool for macOS.\nCapture any text on your screen.")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .lineSpacing(2)
+            VStack(spacing: 4) {
+                Text("Screen OCR · Type It · Capture History")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
+                Text("Capture text from anywhere on your screen, retype it into any app, keep a searchable history, and prevent your Mac from sleeping - all from the menu bar.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+            }
+            .padding(.horizontal, 16)
 
             HStack(spacing: 10) {
                 Link(destination: URL(string: "https://github.com/marduc812/kimeno")!) {

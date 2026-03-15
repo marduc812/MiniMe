@@ -20,7 +20,7 @@ struct SettingsView: View {
                 SettingsTabButton(
                     title: "General",
                     icon: "gearshape.fill",
-                    color: .blue,
+                    gradient: LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing),
                     isSelected: selectedTab == 0
                 ) {
                     withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 0 }
@@ -29,7 +29,7 @@ struct SettingsView: View {
                 SettingsTabButton(
                     title: "Capture",
                     icon: "text.viewfinder",
-                    color: .orange,
+                    gradient: LinearGradient(colors: [.orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing),
                     isSelected: selectedTab == 1
                 ) {
                     withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 1 }
@@ -38,7 +38,7 @@ struct SettingsView: View {
                 SettingsTabButton(
                     title: "Type It",
                     icon: "keyboard.fill",
-                    color: .purple,
+                    gradient: LinearGradient(colors: [.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
                     isSelected: selectedTab == 2
                 ) {
                     withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 2 }
@@ -47,7 +47,7 @@ struct SettingsView: View {
                 SettingsTabButton(
                     title: "Shortcuts",
                     icon: "command.square.fill",
-                    color: .teal,
+                    gradient: LinearGradient(colors: [.teal, .green], startPoint: .topLeading, endPoint: .bottomTrailing),
                     isSelected: selectedTab == 3
                 ) {
                     withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 3 }
@@ -56,7 +56,7 @@ struct SettingsView: View {
                 SettingsTabButton(
                     title: "About",
                     icon: "info.circle.fill",
-                    color: Color(.systemGray),
+                    gradient: LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing),
                     isSelected: selectedTab == 4,
                     badge: updateManager.updateAvailable
                 ) {

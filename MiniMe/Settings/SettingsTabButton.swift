@@ -8,7 +8,7 @@ import SwiftUI
 struct SettingsTabButton: View {
     let title: String
     let icon: String
-    let color: Color
+    let gradient: LinearGradient
     let isSelected: Bool
     var badge: Bool = false
     let action: () -> Void
@@ -18,8 +18,9 @@ struct SettingsTabButton: View {
             VStack(spacing: 5) {
                 ZStack(alignment: .topTrailing) {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(isSelected ? color : Color.secondary.opacity(0.12))
+                        .fill(isSelected ? AnyShapeStyle(gradient) : AnyShapeStyle(Color.secondary.opacity(0.12)))
                         .frame(width: 32, height: 32)
+                        .shadow(color: isSelected ? .black.opacity(0.18) : .clear, radius: 4, y: 2)
                     Image(systemName: icon)
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(isSelected ? .white : .secondary)
