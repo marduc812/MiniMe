@@ -78,7 +78,7 @@ class SettingsManager: ObservableObject {
         disablePreventSleep()
 
         let result = IOPMAssertionCreateWithName(
-            kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
+            kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
             IOPMAssertionLevel(kIOPMAssertionLevelOn),
             "MiniMe: Prevent Sleep" as CFString,
             &sleepAssertionID
