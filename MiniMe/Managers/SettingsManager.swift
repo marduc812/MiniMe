@@ -41,6 +41,13 @@ class SettingsManager: ObservableObject {
     @AppStorage("typeItCountdownDuration") var typeItCountdownDuration = 5
     @AppStorage("typeItCountdownSound") var typeItCountdownSound = true
 
+    // Scheduled action (config persists; armed runtime state does not — see ScheduledActionManager)
+    @AppStorage("scheduledText") var scheduledText = ""
+    @AppStorage("scheduledComboEnabled") var scheduledComboEnabled = true
+    @AppStorage("scheduledIntervalValue") var scheduledIntervalValue = 1
+    @AppStorage("scheduledIntervalUnit") var scheduledIntervalUnit = ScheduleUnit.hours.rawValue
+    @AppStorage("scheduledRepeat") var scheduledRepeat = false
+
     var launchAtLogin: Bool {
         get {
             SMAppService.mainApp.status == .enabled
@@ -67,6 +74,9 @@ class SettingsManager: ObservableObject {
     }
     @Published var typeItShortcut: CustomShortcut {
         didSet { saveShortcuts() }
+    }
+    @Published var scheduledCombo: CustomShortcut {
+        didSet { saveScheduledCombo() }
     }
 
     @Published private(set) var activeSleepDuration: SleepDuration? = nil
@@ -126,6 +136,19 @@ class SettingsManager: ObservableObject {
             typeItShortcut = shortcut
         } else {
             typeItShortcut = .defaultTypeIt
+        }
+
+        if let data = UserDefaults.standard.data(forKey: "scheduledCombo"),
+           let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
+            scheduledCombo = shortcut
+        } else {
+            scheduledCombo = CustomShortcut(keyCode: 36, modifiers: 0) // Return
+        }
+    }
+
+    private func saveScheduledCombo() {
+        if let data = try? JSONEncoder().encode(scheduledCombo) {
+            UserDefaults.standard.set(data, forKey: "scheduledCombo")
         }
     }
 

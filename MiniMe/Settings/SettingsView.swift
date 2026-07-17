@@ -45,22 +45,31 @@ struct SettingsView: View {
                 }
 
                 SettingsTabButton(
-                    title: "Shortcuts",
-                    icon: "command.square.fill",
-                    gradient: LinearGradient(colors: [.teal, .green], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    title: "Scheduler",
+                    icon: "alarm.fill",
+                    gradient: LinearGradient(colors: [.pink, .red], startPoint: .topLeading, endPoint: .bottomTrailing),
                     isSelected: selectedTab == 3
                 ) {
                     withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 3 }
                 }
 
                 SettingsTabButton(
+                    title: "Shortcuts",
+                    icon: "command.square.fill",
+                    gradient: LinearGradient(colors: [.teal, .green], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    isSelected: selectedTab == 4
+                ) {
+                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 4 }
+                }
+
+                SettingsTabButton(
                     title: "About",
                     icon: "info.circle.fill",
                     gradient: LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    isSelected: selectedTab == 4,
+                    isSelected: selectedTab == 5,
                     badge: updateManager.updateAvailable
                 ) {
-                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 4 }
+                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 5 }
                 }
 
                 Spacer()
@@ -81,6 +90,8 @@ struct SettingsView: View {
                 case 2:
                     TypeItSettingsView(settings: settings)
                 case 3:
+                    SchedulerSettingsView(settings: settings)
+                case 4:
                     ShortcutsSettingsView(settings: settings)
                 default:
                     AboutSettingsView(updateManager: updateManager)

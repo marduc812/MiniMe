@@ -27,7 +27,10 @@ class TypingService: ObservableObject {
 
     @Published var countdown: Int? = nil
 
-    func typeText(_ text: String, closeAction: (() -> Void)? = nil) {
+    /// Returns true if Accessibility permission is granted. If not, shows a prompt
+    /// directing the user to System Settings and returns false.
+    @discardableResult
+    func ensureAccessibilityPermission() -> Bool {
         guard AXIsProcessTrusted() else {
             DispatchQueue.main.async {
                 let alert = NSAlert()
@@ -40,8 +43,13 @@ class TypingService: ObservableObject {
                     NSWorkspace.shared.open(url)
                 }
             }
-            return
+            return false
         }
+        return true
+    }
+
+    func typeText(_ text: String, closeAction: (() -> Void)? = nil) {
+        guard ensureAccessibilityPermission() else { return }
 
         closeAction?()
 
@@ -70,20 +78,7 @@ class TypingService: ObservableObject {
     }
 
     func typeFromSelection() {
-        guard AXIsProcessTrusted() else {
-            DispatchQueue.main.async {
-                let alert = NSAlert()
-                alert.messageText = "Accessibility Permission Required"
-                alert.informativeText = "MiniMe needs Accessibility permission to simulate typing. Please grant it in System Settings → Privacy & Security → Accessibility."
-                alert.addButton(withTitle: "Open Settings")
-                alert.addButton(withTitle: "Cancel")
-                if alert.runModal() == .alertFirstButtonReturn,
-                   let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                    NSWorkspace.shared.open(url)
-                }
-            }
-            return
-        }
+        guard ensureAccessibilityPermission() else { return }
 
         // Save current clipboard, simulate Cmd+C, read selection, restore clipboard
         let previousContents = NSPasteboard.general.string(forType: .string)
@@ -143,18 +138,37 @@ class TypingService: ObservableObject {
         "`":(0x32,false),"~":(0x32,true),
     ]
 
+    private static let shiftKeyCode: CGKeyCode = 0x38 // Left Shift
+
     private func performTyping(_ text: String) {
-        let source = CGEventSource(stateID: .hidSystemState)
+        let source = CGEventSource(stateID: .privateState)
         for char in text {
             if let (keyCode, needsShift) = Self.charToKeyCode[char] {
-                let flags: CGEventFlags = needsShift ? .maskShift : []
+                if needsShift {
+                    let shiftDown = CGEvent(keyboardEventSource: source, virtualKey: Self.shiftKeyCode, keyDown: true)
+                    shiftDown?.post(tap: .cgAnnotatedSessionEventTap)
+                }
                 guard let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
                       let keyUp   = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
-                else { continue }
-                keyDown.flags = flags
-                keyUp.flags   = flags
-                keyDown.post(tap: .cghidEventTap)
-                keyUp.post(tap: .cghidEventTap)
+                else {
+                    if needsShift {
+                        let shiftUp = CGEvent(keyboardEventSource: source, virtualKey: Self.shiftKeyCode, keyDown: false)
+                        shiftUp?.post(tap: .cgAnnotatedSessionEventTap)
+                    }
+                    continue
+                }
+                if needsShift {
+                    keyDown.flags = .maskShift
+                    keyUp.flags = .maskShift
+                    var unichar = UniChar(char.unicodeScalars.first!.value & 0xFFFF)
+                    keyDown.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unichar)
+                }
+                keyDown.post(tap: .cgAnnotatedSessionEventTap)
+                keyUp.post(tap: .cgAnnotatedSessionEventTap)
+                if needsShift {
+                    let shiftUp = CGEvent(keyboardEventSource: source, virtualKey: Self.shiftKeyCode, keyDown: false)
+                    shiftUp?.post(tap: .cgAnnotatedSessionEventTap)
+                }
             } else {
                 // Fallback for unmapped characters (e.g. accented, emoji)
                 var unichar = UniChar(char.unicodeScalars.first!.value & 0xFFFF)
@@ -163,10 +177,48 @@ class TypingService: ObservableObject {
                 else { continue }
                 keyDown.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unichar)
                 keyUp.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unichar)
-                keyDown.post(tap: .cghidEventTap)
-                keyUp.post(tap: .cghidEventTap)
+                keyDown.post(tap: .cgAnnotatedSessionEventTap)
+                keyUp.post(tap: .cgAnnotatedSessionEventTap)
             }
             Thread.sleep(forTimeInterval: 0.05)
         }
+    }
+
+    // MARK: - Scheduled Action
+
+    /// Fires a scheduled action: types `text` (if non-empty), then sends `combo` (if provided),
+    /// into whatever window is focused at call time. Runs off the main thread.
+    func fireScheduledAction(text: String, combo: CustomShortcut?) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            if !text.isEmpty {
+                self.performTyping(text)
+            }
+            if let combo = combo {
+                self.sendKeyCombo(keyCode: CGKeyCode(combo.keyCode), modifiers: combo.modifiers)
+            }
+        }
+    }
+
+    /// Posts a single key-down/up for the given virtual key with the given modifier flags.
+    private func sendKeyCombo(keyCode: CGKeyCode, modifiers: UInt) {
+        let source = CGEventSource(stateID: .privateState)
+        let flags = Self.cgEventFlags(from: modifiers)
+        guard let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
+              let keyUp   = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
+        else { return }
+        keyDown.flags = flags
+        keyUp.flags = flags
+        keyDown.post(tap: .cgAnnotatedSessionEventTap)
+        keyUp.post(tap: .cgAnnotatedSessionEventTap)
+    }
+
+    private static func cgEventFlags(from modifiers: UInt) -> CGEventFlags {
+        let ns = NSEvent.ModifierFlags(rawValue: modifiers)
+        var flags: CGEventFlags = []
+        if ns.contains(.command) { flags.insert(.maskCommand) }
+        if ns.contains(.shift)   { flags.insert(.maskShift) }
+        if ns.contains(.option)  { flags.insert(.maskAlternate) }
+        if ns.contains(.control) { flags.insert(.maskControl) }
+        return flags
     }
 }
