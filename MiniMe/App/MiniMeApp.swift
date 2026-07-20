@@ -45,6 +45,7 @@ struct MiniMeApp: App {
     @StateObject private var updateManager = UpdateManager()
     @ObservedObject private var typingService = TypingService.shared
     @ObservedObject private var mouseMover = MouseMoverManager.shared
+    @ObservedObject private var scheduler = ScheduledActionManager.shared
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @State private var hasSetupHotkeys = false
 
@@ -66,6 +67,10 @@ struct MiniMeApp: App {
             if let count = typingService.countdown {
                 Text("\(count)")
                     .font(.system(size: 14, weight: .bold).monospacedDigit())
+            } else if scheduler.isArmed {
+                // Show an hourglass while a scheduled action is pending, so the
+                // user knows an automated action is about to fire and to wait.
+                Image(systemName: "hourglass")
             } else if mouseMover.isArmed {
                 // Show a moving-cursor glyph while the mouse mover is active.
                 Image(systemName: "cursorarrow.motionlines")
