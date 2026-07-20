@@ -6,7 +6,6 @@
 import SwiftUI
 import ScreenCaptureKit
 import UserNotifications
-import Vision
 
 @MainActor
 class ScreenCaptureManager: ObservableObject {
@@ -175,6 +174,7 @@ class ScreenCaptureManager: ObservableObject {
         let recognitionLanguage = UserDefaults.standard.string(forKey: "recognitionLanguage") ?? "en-US"
         let lineAwareOCR = UserDefaults.standard.object(forKey: "lineAwareOCR") as? Bool ?? true
         let ocrAccuracy = UserDefaults.standard.string(forKey: "ocrAccuracy") ?? "accurate"
+        let useLanguageCorrection = UserDefaults.standard.object(forKey: "useLanguageCorrection") as? Bool ?? false
 
         // Perform entire capture and OCR pipeline on background thread
         // Use .utility priority (below default) to avoid priority inversion with SCScreenshotManager
@@ -205,12 +205,14 @@ class ScreenCaptureManager: ObservableObject {
                 }
 
                 // Perform OCR
-                let extractedText = self?.performOCR(
-                    on: croppedImage,
-                    language: recognitionLanguage,
-                    lineAware: lineAwareOCR,
-                    accuracy: ocrAccuracy
+                let options = OCROptions(
+                    languages: [recognitionLanguage],
+                    automaticallyDetectsLanguage: true,
+                    usesLanguageCorrection: useLanguageCorrection,
+                    recognitionLevel: ocrAccuracy == "fast" ? .fast : .accurate,
+                    lineAware: lineAwareOCR
                 )
+                let extractedText = OCREngine().recognizeText(in: croppedImage, options: options)
 
                 // Update UI on main thread
                 await self?.handleCaptureResult(
@@ -263,96 +265,6 @@ class ScreenCaptureManager: ObservableObject {
         } else {
             showNotification(text: nil, autoCopied: false)
         }
-    }
-
-    private nonisolated func performOCR(on image: CGImage, language: String, lineAware: Bool, accuracy: String) -> String? {
-        let requestHandler = VNImageRequestHandler(cgImage: image, options: [:])
-
-        var resultText: String?
-
-        let request = VNRecognizeTextRequest { request, error in
-            if let error = error {
-                print("OCR error: \(error.localizedDescription)")
-                return
-            }
-
-            guard let observations = request.results as? [VNRecognizedTextObservation] else { return }
-
-            if lineAware {
-                // Line-aware mode: group text by lines and read left-to-right
-                // Store full item data with index for O(1) lookups
-                struct TextItem {
-                    let text: String
-                    let minX: CGFloat
-                    let midY: CGFloat
-                    let height: CGFloat
-                }
-
-                let textItems: [TextItem] = observations.compactMap { observation in
-                    guard let text = observation.topCandidates(1).first?.string else { return nil }
-                    let box = observation.boundingBox
-                    return TextItem(
-                        text: text,
-                        minX: box.minX,
-                        midY: (box.minY + box.maxY) / 2,
-                        height: box.maxY - box.minY
-                    )
-                }
-
-                // Group observations into lines - O(n) with stored midY/height
-                var lines: [(items: [(text: String, minX: CGFloat)], midY: CGFloat, height: CGFloat)] = []
-
-                for item in textItems {
-                    // Find an existing line that this item belongs to
-                    var foundLineIndex: Int?
-                    for (index, line) in lines.enumerated() {
-                        // Items are on same line if their midpoints are within half a line height
-                        if abs(item.midY - line.midY) < line.height * 0.5 {
-                            foundLineIndex = index
-                            break
-                        }
-                    }
-
-                    if let index = foundLineIndex {
-                        lines[index].items.append((item.text, item.minX))
-                    } else {
-                        lines.append(([(item.text, item.minX)], item.midY, item.height))
-                    }
-                }
-
-                // Sort lines by Y position (top to bottom - Vision uses bottom-left origin)
-                let sortedLines = lines.sorted { $0.midY > $1.midY }
-
-                // Sort items within each line by X position (left to right) and join
-                let lineTexts = sortedLines.map { line in
-                    line.items.sorted { $0.minX < $1.minX }
-                        .map { $0.text }
-                        .joined(separator: " ")
-                }
-
-                resultText = lineTexts.joined(separator: "\n")
-            } else {
-                // Column-based mode: original Vision ordering
-                let texts = observations.compactMap { observation -> String? in
-                    observation.topCandidates(1).first?.string
-                }
-                resultText = texts.joined(separator: "\n")
-            }
-        }
-
-        // Set recognition level based on user preference
-        request.recognitionLevel = accuracy == "fast" ? .fast : .accurate
-        request.usesLanguageCorrection = accuracy == "accurate"
-        request.recognitionLanguages = [language]
-
-        do {
-            try requestHandler.perform([request])
-        } catch {
-            print("OCR failed: \(error.localizedDescription)")
-            return nil
-        }
-
-        return resultText
     }
 
     private func showNotification(text: String?, autoCopied: Bool) {

@@ -9,11 +9,11 @@ import AppKit
 
 struct CustomShortcutTests {
 
-    @Test func defaultCaptureShortcutIsCommandShiftC() {
+    @Test func defaultCaptureShortcutIsCommandShift2() {
         let shortcut = CustomShortcut.defaultCapture
 
-        // keyCode 8 = 'C'
-        #expect(shortcut.keyCode == 8)
+        // keyCode 19 = '2'
+        #expect(shortcut.keyCode == 19)
         // Command + Shift modifiers
         let flags = NSEvent.ModifierFlags(rawValue: shortcut.modifiers)
         #expect(flags.contains(.command))
@@ -37,7 +37,7 @@ struct CustomShortcutTests {
 
         #expect(display.contains("⌘")) // Command
         #expect(display.contains("⇧")) // Shift
-        #expect(display.contains("C"))
+        #expect(display.contains("2")) // keyCode 19
     }
 
     @Test func displayStringShowsControlModifier() {

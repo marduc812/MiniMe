@@ -38,6 +38,7 @@ class SettingsManager: ObservableObject {
     @AppStorage("recognitionLanguage") var recognitionLanguage = "en-US"
     @AppStorage("lineAwareOCR") var lineAwareOCR = true
     @AppStorage("ocrAccuracy") var ocrAccuracy = "accurate"
+    @AppStorage("useLanguageCorrection") var useLanguageCorrection = false
     @AppStorage("typeItCountdownDuration") var typeItCountdownDuration = 5
     @AppStorage("typeItCountdownSound") var typeItCountdownSound = true
 

@@ -13,12 +13,15 @@ https://github.com/user-attachments/assets/1ce8e2f5-3c4f-4365-a2ab-2ad58d200ddc
 
 ### OCR & Capture
 - **Quick Screen Capture** - Select any area on screen with a drag gesture and crosshair cursor
-- **Instant OCR** - Text extraction powered by Apple's Vision framework
+- **Instant OCR** - Text extraction powered by Apple's Vision framework, using the newest recognition revision available on your Mac
+- **Small-Text Upscaling** - Tight selections of small text are automatically upscaled before recognition, dramatically improving accuracy on the cases Vision would otherwise miss
+- **Automatic Language Detection** - Recognizes text even when it isn't in your selected language
 - **Multi-Display Support** - Works seamlessly across multiple monitors with Retina scaling
 - **Auto-Copy to Clipboard** - Extracted text is automatically copied for immediate use
 - **Multi-Language OCR** - Supports 11 languages: English (US/UK), German, French, Spanish, Italian, Portuguese, Chinese (Simplified/Traditional), Japanese, Korean
 - **OCR Accuracy Modes** - Choose between fast and accurate recognition
 - **Line-Aware Text Ordering** - Intelligent ordering that respects document layout
+- **Language Correction Toggle** - Optional natural-language correction (off by default, since it can alter code, URLs, and IDs)
 
 ### Type It
 - **Retype Anywhere** - Captures selected text and replays it keystroke-by-keystroke into any app, bypassing paste restrictions
@@ -112,6 +115,7 @@ Shortcuts can be fully customized in Settings → Shortcuts.
 - Recognition language
 - OCR accuracy (fast / accurate)
 - Line-aware text ordering
+- Language correction (off by default)
 
 ### Type It
 - Countdown duration (1–10 seconds)
@@ -150,6 +154,8 @@ MiniMe/
 │   └── UpdateManager.swift
 ├── Services/               # Workers
 │   ├── ScreenCaptureManager.swift
+│   ├── OCREngine.swift          # Vision text recognition (testable, standalone)
+│   ├── OCRImageProcessor.swift  # Pre-OCR upscaling for small text
 │   └── TypingService.swift
 ├── Models/                 # Data models
 ├── Selection/              # Full-screen selection overlay
@@ -169,3 +175,20 @@ xcodebuild -project MiniMe.xcodeproj -scheme MiniMe test
 # UI tests
 xcodebuild -project MiniMe.xcodeproj -scheme MiniMe -destination 'platform=macOS' test
 ```
+
+### OCR regression corpus
+
+OCR quality is guarded by a fixture-based test that runs the engine against real images
+and asserts on the recovered text. To grow coverage, drop a PNG into
+`MiniMeTests/Fixtures/` and add an entry to `MiniMeTests/Fixtures/ocr-fixtures.json`:
+
+```json
+{
+  "fixtures": [
+    { "image": "my_screenshot.png", "mustContain": ["expected", "text"] }
+  ]
+}
+```
+
+Every fixture is checked on each test run, so accuracy improvements are protected against
+regressions over time.

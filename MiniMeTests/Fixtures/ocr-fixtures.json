@@ -1,0 +1,12 @@
+{
+  "fixtures": [
+    {
+      "image": "sample_paragraph_small.png",
+      "mustContain": [
+        "quick brown fox",
+        "lazy dog",
+        "Kimeno OCR 12345"
+      ]
+    }
+  ]
+}

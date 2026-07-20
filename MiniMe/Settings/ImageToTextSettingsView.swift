@@ -63,6 +63,13 @@ struct ImageToTextSettingsView: View {
                     SettingsRowIcon(systemName: "text.alignleft", color: .indigo)
                     Toggle("Line-aware text ordering", isOn: $settings.lineAwareOCR)
                 }
+                HStack(spacing: 10) {
+                    SettingsRowIcon(systemName: "textformat.abc.dottedunderline", color: .pink)
+                    Toggle("Language correction", isOn: $settings.useLanguageCorrection)
+                }
+                Text("Language correction fixes natural-language typos but can alter code, URLs, and IDs. Leave off for technical text.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
         }
