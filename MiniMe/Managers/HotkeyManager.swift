@@ -39,6 +39,7 @@ class HotkeyManager: ObservableObject {
     private var captureHotkeyRef: EventHotKeyRef?
     private var historyHotkeyRef: EventHotKeyRef?
     private var typeItHotkeyRef: EventHotKeyRef?
+    private var moveMouseHotkeyRef: EventHotKeyRef?
     private var escapeHotkeyRef: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
 
@@ -47,11 +48,13 @@ class HotkeyManager: ObservableObject {
     var onCapture: (@MainActor () -> Void)?
     var onHistory: (@MainActor () -> Void)?
     var onTypeIt: (@MainActor () -> Void)?
+    var onToggleMouseMove: (@MainActor () -> Void)?
     var onEscape: (@MainActor () -> Void)?
 
     private var captureShortcut: CustomShortcut = .defaultCapture
     private var historyShortcut: CustomShortcut = .defaultHistory
     private var typeItShortcut: CustomShortcut = .defaultTypeIt
+    private var moveMouseShortcut: CustomShortcut = .defaultMoveMouse
 
     // Signature "KIMO" for main hotkeys
     private static let mainSignature = OSType(0x4B494D4F)
@@ -59,6 +62,7 @@ class HotkeyManager: ObservableObject {
     private static let historyHotkeyID = EventHotKeyID(signature: mainSignature, id: 2)
     private static let escapeHotkeyID = EventHotKeyID(signature: mainSignature, id: 3)
     private static let typeItHotkeyID = EventHotKeyID(signature: mainSignature, id: 4)
+    private static let moveMouseHotkeyID = EventHotKeyID(signature: mainSignature, id: 5)
 
     private static weak var sharedInstance: HotkeyManager?
 
@@ -87,10 +91,11 @@ class HotkeyManager: ObservableObject {
         }
     }
 
-    func updateShortcuts(capture: CustomShortcut, history: CustomShortcut, typeIt: CustomShortcut) {
+    func updateShortcuts(capture: CustomShortcut, history: CustomShortcut, typeIt: CustomShortcut, moveMouse: CustomShortcut) {
         captureShortcut = capture
         historyShortcut = history
         typeItShortcut = typeIt
+        moveMouseShortcut = moveMouse
 
         // Re-register hotkeys with new shortcuts
         startMonitoring()
@@ -131,6 +136,9 @@ class HotkeyManager: ObservableObject {
             case 4:
                 print("[HotkeyManager] Type It hotkey triggered")
                 manager.onTypeIt?()
+            case 5:
+                print("[HotkeyManager] Move Mouse hotkey triggered")
+                manager.onToggleMouseMove?()
             case 3:
                 print("[HotkeyManager] Escape hotkey triggered")
                 manager.onEscape?()
@@ -180,6 +188,18 @@ class HotkeyManager: ObservableObject {
         )
 
         print("[HotkeyManager] Registered type it hotkey: keyCode=\(typeItShortcut.keyCode), status=\(typeItStatus)")
+
+        // Register move mouse hotkey
+        let moveMouseStatus = RegisterEventHotKey(
+            UInt32(moveMouseShortcut.keyCode),
+            carbonModifiers(from: moveMouseShortcut.modifiers),
+            Self.moveMouseHotkeyID,
+            GetApplicationEventTarget(),
+            0,
+            &moveMouseHotkeyRef
+        )
+
+        print("[HotkeyManager] Registered move mouse hotkey: keyCode=\(moveMouseShortcut.keyCode), status=\(moveMouseStatus)")
     }
 
     func stopMonitoring() {
@@ -194,6 +214,10 @@ class HotkeyManager: ObservableObject {
         if let ref = typeItHotkeyRef {
             UnregisterEventHotKey(ref)
             typeItHotkeyRef = nil
+        }
+        if let ref = moveMouseHotkeyRef {
+            UnregisterEventHotKey(ref)
+            moveMouseHotkeyRef = nil
         }
     }
 

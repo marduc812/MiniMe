@@ -54,22 +54,31 @@ struct SettingsView: View {
                 }
 
                 SettingsTabButton(
-                    title: "Shortcuts",
-                    icon: "command.square.fill",
-                    gradient: LinearGradient(colors: [.teal, .green], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    title: "Mouse",
+                    icon: "cursorarrow.motionlines",
+                    gradient: LinearGradient(colors: [.indigo, .blue], startPoint: .topLeading, endPoint: .bottomTrailing),
                     isSelected: selectedTab == 4
                 ) {
                     withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 4 }
                 }
 
                 SettingsTabButton(
+                    title: "Shortcuts",
+                    icon: "command.square.fill",
+                    gradient: LinearGradient(colors: [.teal, .green], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    isSelected: selectedTab == 5
+                ) {
+                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 5 }
+                }
+
+                SettingsTabButton(
                     title: "About",
                     icon: "info.circle.fill",
                     gradient: LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    isSelected: selectedTab == 5,
+                    isSelected: selectedTab == 6,
                     badge: updateManager.updateAvailable
                 ) {
-                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 5 }
+                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 6 }
                 }
 
                 Spacer()
@@ -92,6 +101,8 @@ struct SettingsView: View {
                 case 3:
                     SchedulerSettingsView(settings: settings)
                 case 4:
+                    MouseMoverSettingsView(settings: settings)
+                case 5:
                     ShortcutsSettingsView(settings: settings)
                 default:
                     AboutSettingsView(updateManager: updateManager)
@@ -101,7 +112,7 @@ struct SettingsView: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 8)
         }
-        .frame(width: 520, height: 460)
+        .frame(width: 600, height: 460)
         .background {
             ZStack {
                 VisualEffectView(material: .sidebar, blendingMode: .behindWindow)

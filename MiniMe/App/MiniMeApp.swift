@@ -89,13 +89,16 @@ struct MiniMeApp: App {
             }
         }
         .onChange(of: settingsManager.captureShortcut) { _, newValue in
-            hotkeyManager.updateShortcuts(capture: newValue, history: settingsManager.historyShortcut, typeIt: settingsManager.typeItShortcut)
+            hotkeyManager.updateShortcuts(capture: newValue, history: settingsManager.historyShortcut, typeIt: settingsManager.typeItShortcut, moveMouse: settingsManager.moveMouseShortcut)
         }
         .onChange(of: settingsManager.historyShortcut) { _, newValue in
-            hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: newValue, typeIt: settingsManager.typeItShortcut)
+            hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: newValue, typeIt: settingsManager.typeItShortcut, moveMouse: settingsManager.moveMouseShortcut)
         }
         .onChange(of: settingsManager.typeItShortcut) { _, newValue in
-            hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: settingsManager.historyShortcut, typeIt: newValue)
+            hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: settingsManager.historyShortcut, typeIt: newValue, moveMouse: settingsManager.moveMouseShortcut)
+        }
+        .onChange(of: settingsManager.moveMouseShortcut) { _, newValue in
+            hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: settingsManager.historyShortcut, typeIt: settingsManager.typeItShortcut, moveMouse: newValue)
         }
         .onChange(of: hasSetupHotkeys, initial: true) { _, _ in
             if !hasSetupHotkeys {
@@ -230,7 +233,7 @@ struct MiniMeApp: App {
         // Connect screenCapture to hotkeyManager for escape key handling
         screenCapture.setHotkeyManager(hotkeyManager)
 
-        hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: settingsManager.historyShortcut, typeIt: settingsManager.typeItShortcut)
+        hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: settingsManager.historyShortcut, typeIt: settingsManager.typeItShortcut, moveMouse: settingsManager.moveMouseShortcut)
         hotkeyManager.onCapture = {
             self.textPreviewManager.closePreviewWindow()
             self.historyStore.closeHistoryWindow()
@@ -245,6 +248,9 @@ struct MiniMeApp: App {
         hotkeyManager.onTypeIt = {
             TypingService.shared.typeFromSelection()
         }
+        hotkeyManager.onToggleMouseMove = {
+            MouseMoverManager.shared.toggle()
+        }
         hotkeyManager.startMonitoring()
     }
 
@@ -257,6 +263,7 @@ struct MenuContentView: View {
     @ObservedObject var hotkeyManager: HotkeyManager
     @ObservedObject var textPreviewManager: TextPreviewManager
     @ObservedObject var updateManager: UpdateManager
+    @ObservedObject var mouseMover = MouseMoverManager.shared
 
     var body: some View {
         Group {
@@ -294,6 +301,17 @@ struct MenuContentView: View {
             .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.historyShortcut))
 
             Divider()
+
+            Button {
+                MouseMoverManager.shared.toggle()
+            } label: {
+                if mouseMover.isArmed {
+                    Label("Stop Moving Mouse", systemImage: "cursorarrow.motionlines")
+                } else {
+                    Label("Move Mouse", systemImage: "cursorarrow.motionlines")
+                }
+            }
+            .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.moveMouseShortcut))
 
             Menu {
                 ForEach(SleepDuration.allCases) { duration in

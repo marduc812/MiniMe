@@ -48,6 +48,10 @@ class SettingsManager: ObservableObject {
     @AppStorage("scheduledIntervalUnit") var scheduledIntervalUnit = ScheduleUnit.hours.rawValue
     @AppStorage("scheduledRepeat") var scheduledRepeat = false
 
+    // Mouse mover (config persists; armed runtime state does not — see MouseMoverManager)
+    @AppStorage("mouseMoverMinSeconds") var mouseMoverMinSeconds = 5
+    @AppStorage("mouseMoverMaxSeconds") var mouseMoverMaxSeconds = 12
+
     var launchAtLogin: Bool {
         get {
             SMAppService.mainApp.status == .enabled
@@ -73,6 +77,9 @@ class SettingsManager: ObservableObject {
         didSet { saveShortcuts() }
     }
     @Published var typeItShortcut: CustomShortcut {
+        didSet { saveShortcuts() }
+    }
+    @Published var moveMouseShortcut: CustomShortcut {
         didSet { saveShortcuts() }
     }
     @Published var scheduledCombo: CustomShortcut {
@@ -138,6 +145,13 @@ class SettingsManager: ObservableObject {
             typeItShortcut = .defaultTypeIt
         }
 
+        if let data = UserDefaults.standard.data(forKey: "moveMouseShortcut"),
+           let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
+            moveMouseShortcut = shortcut
+        } else {
+            moveMouseShortcut = .defaultMoveMouse
+        }
+
         if let data = UserDefaults.standard.data(forKey: "scheduledCombo"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             scheduledCombo = shortcut
@@ -162,12 +176,16 @@ class SettingsManager: ObservableObject {
         if let data = try? JSONEncoder().encode(typeItShortcut) {
             UserDefaults.standard.set(data, forKey: "typeItShortcut")
         }
+        if let data = try? JSONEncoder().encode(moveMouseShortcut) {
+            UserDefaults.standard.set(data, forKey: "moveMouseShortcut")
+        }
     }
 
     func resetToDefaults() {
         captureShortcut = .defaultCapture
         historyShortcut = .defaultHistory
         typeItShortcut = .defaultTypeIt
+        moveMouseShortcut = .defaultMoveMouse
     }
 
     func showSettingsWindow(hotkeyManager: HotkeyManager, updateManager: UpdateManager) {
@@ -183,7 +201,7 @@ class SettingsManager: ObservableObject {
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Settings"
         window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 520, height: 460))
+        window.setContentSize(NSSize(width: 600, height: 460))
         window.center()
         window.isReleasedWhenClosed = false
 

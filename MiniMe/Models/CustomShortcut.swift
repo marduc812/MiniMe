@@ -13,6 +13,7 @@ struct CustomShortcut: Codable, Equatable, Sendable {
     static nonisolated let defaultCapture = CustomShortcut(keyCode: 19, modifiers: 1179648)
     static nonisolated let defaultHistory = CustomShortcut(keyCode: 4, modifiers: 1179648)
     static nonisolated let defaultTypeIt = CustomShortcut(keyCode: 18, modifiers: 1179648) // ⌘⇧1
+    static nonisolated let defaultMoveMouse = CustomShortcut(keyCode: 46, modifiers: 1179648) // ⌘⇧M
 
     var displayString: String {
         var parts: [String] = []

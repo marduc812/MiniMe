@@ -34,6 +34,15 @@ struct ShortcutsSettingsView: View {
                 }
             }
 
+            Section("Mouse") {
+                HStack(spacing: 10) {
+                    SettingsRowIcon(systemName: "cursorarrow.motionlines", color: .indigo)
+                    Text("Start / Stop moving mouse")
+                    Spacer()
+                    ShortcutRecorderButton(shortcut: $settings.moveMouseShortcut)
+                }
+            }
+
             Section {
                 Button("Reset to Defaults") {
                     settings.resetToDefaults()

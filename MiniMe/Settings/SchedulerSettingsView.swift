@@ -21,12 +21,11 @@ struct SchedulerSettingsView: View {
                     SettingsRowIcon(systemName: "timer", color: .pink)
                     Text("Run after")
                     Spacer()
-                    Stepper(value: $settings.scheduledIntervalValue, in: 1...999) {
-                        Text("\(settings.scheduledIntervalValue)")
-                            .monospacedDigit()
-                            .frame(minWidth: 28, alignment: .trailing)
-                    }
-                    .fixedSize()
+                    Text("\(settings.scheduledIntervalValue)")
+                        .monospacedDigit()
+                        .frame(minWidth: 28, alignment: .trailing)
+                    Stepper("", value: $settings.scheduledIntervalValue, in: 1...999)
+                        .labelsHidden()
                     Picker("", selection: $settings.scheduledIntervalUnit) {
                         ForEach(ScheduleUnit.allCases) { unit in
                             Text(unit.rawValue).tag(unit.rawValue)
