@@ -44,6 +44,7 @@ struct MiniMeApp: App {
     @StateObject private var onboardingManager = OnboardingManager()
     @StateObject private var updateManager = UpdateManager()
     @ObservedObject private var typingService = TypingService.shared
+    @ObservedObject private var mouseMover = MouseMoverManager.shared
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @State private var hasSetupHotkeys = false
 
@@ -65,6 +66,9 @@ struct MiniMeApp: App {
             if let count = typingService.countdown {
                 Text("\(count)")
                     .font(.system(size: 14, weight: .bold).monospacedDigit())
+            } else if mouseMover.isArmed {
+                // Show a moving-cursor glyph while the mouse mover is active.
+                Image(systemName: "cursorarrow.motionlines")
             } else {
                 Image(nsImage: {
                     let img = NSImage(named: "MenuBarIcon") ?? NSImage()
