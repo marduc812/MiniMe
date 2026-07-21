@@ -69,6 +69,85 @@ enum OCRTestSupport {
         return context.makeImage()!
     }
 
+    /// Renders small black text near the top of a large fixed white canvas.
+    /// This reproduces the real-world case the whole-image upscale heuristic
+    /// misses: a big selection whose glyphs are individually tiny.
+    static func renderSmallTextOnLargeCanvas(
+        _ string: String,
+        fontSize: CGFloat = 9,
+        canvasWidth: Int = 1000,
+        canvasHeight: Int = 700
+    ) -> CGImage {
+        let font = NSFont.systemFont(ofSize: fontSize)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black
+        ]
+        let attributed = NSAttributedString(string: string, attributes: attributes)
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let context = CGContext(
+            data: nil,
+            width: canvasWidth,
+            height: canvasHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        context.setFillColor(NSColor.white.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+
+        let graphicsContext = NSGraphicsContext(cgContext: context, flipped: false)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = graphicsContext
+        // Draw near the top of the canvas (origin is bottom-left).
+        attributed.draw(at: NSPoint(x: 20, y: CGFloat(canvasHeight) - 40))
+        NSGraphicsContext.restoreGraphicsState()
+
+        return context.makeImage()!
+    }
+
+    /// Renders low-contrast text (medium gray on light gray) to exercise the
+    /// contrast-normalization preprocessing step.
+    static func renderLowContrastText(
+        _ string: String,
+        fontSize: CGFloat = 36,
+        padding: CGFloat = 20
+    ) -> CGImage {
+        let font = NSFont.systemFont(ofSize: fontSize)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor(white: 0.55, alpha: 1.0)
+        ]
+        let attributed = NSAttributedString(string: string, attributes: attributes)
+        let textSize = attributed.size()
+
+        let width = Int(ceil(textSize.width + padding * 2))
+        let height = Int(ceil(textSize.height + padding * 2))
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        context.setFillColor(NSColor(white: 0.72, alpha: 1.0).cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+
+        let graphicsContext = NSGraphicsContext(cgContext: context, flipped: false)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = graphicsContext
+        attributed.draw(at: NSPoint(x: padding, y: padding))
+        NSGraphicsContext.restoreGraphicsState()
+
+        return context.makeImage()!
+    }
+
     /// Renders multiple lines of black text stacked top-to-bottom on white.
     /// Used to verify line-aware ordering in the OCR engine.
     static func renderLines(

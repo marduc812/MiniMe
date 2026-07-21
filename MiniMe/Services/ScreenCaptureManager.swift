@@ -171,7 +171,7 @@ class ScreenCaptureManager: ObservableObject {
         // Read settings on main thread before dispatching
         let autoCopyToClipboard = UserDefaults.standard.object(forKey: "autoCopyToClipboard") as? Bool ?? true
         let playSound = UserDefaults.standard.object(forKey: "playSound") as? Bool ?? true
-        let recognitionLanguage = UserDefaults.standard.string(forKey: "recognitionLanguage") ?? "en-US"
+        let recognitionLanguage = UserDefaults.standard.string(forKey: "recognitionLanguage") ?? OCROptions.automaticLanguage
         let lineAwareOCR = UserDefaults.standard.object(forKey: "lineAwareOCR") as? Bool ?? true
         let ocrAccuracy = UserDefaults.standard.string(forKey: "ocrAccuracy") ?? "accurate"
         let useLanguageCorrection = UserDefaults.standard.object(forKey: "useLanguageCorrection") as? Bool ?? false
@@ -204,10 +204,13 @@ class ScreenCaptureManager: ObservableObject {
                     return
                 }
 
-                // Perform OCR
+                // Perform OCR. The language setting now takes effect: "automatic"
+                // lets Vision detect the language, otherwise recognition is
+                // constrained to the chosen language.
+                let language = OCROptions.languageConfiguration(for: recognitionLanguage)
                 let options = OCROptions(
-                    languages: [recognitionLanguage],
-                    automaticallyDetectsLanguage: true,
+                    languages: language.languages,
+                    automaticallyDetectsLanguage: language.automatic,
                     usesLanguageCorrection: useLanguageCorrection,
                     recognitionLevel: ocrAccuracy == "fast" ? .fast : .accurate,
                     lineAware: lineAwareOCR

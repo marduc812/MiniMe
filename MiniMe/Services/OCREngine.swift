@@ -29,21 +29,87 @@ struct OCROptions {
     var maxUpscale: CGFloat = 4
     /// Ignore text shorter than this fraction of image height (0 = detect all).
     var minimumTextHeight: Float = 0
+    /// Target on-screen glyph/line height in pixels. When a first pass finds text
+    /// smaller than this, the image is upscaled and recognized again — the single
+    /// biggest win for large selections full of small text.
+    var targetGlyphHeightPx: CGFloat = 32
+    /// Upper bound on the longest side of the image handed to a recognition pass,
+    /// so adaptive upscaling of a big selection can't blow up memory.
+    var maxProcessedDimension: CGFloat = 4096
 
     static let `default` = OCROptions()
+
+    /// Sentinel language setting that enables Vision's automatic detection.
+    static let automaticLanguage = "automatic"
+
+    /// Maps a stored language setting to a recognition configuration. The
+    /// `automatic` sentinel (or an empty value) enables Vision's language
+    /// detection; any specific language code constrains recognition to it, so the
+    /// Settings picker actually takes effect.
+    static func languageConfiguration(for setting: String) -> (automatic: Bool, languages: [String]) {
+        if setting.isEmpty || setting == automaticLanguage {
+            return (true, ["en-US"])
+        }
+        return (false, [setting])
+    }
 }
 
 struct OCREngine {
 
-    /// Recognizes text in `image`, returning the joined result (empty if none).
+    /// Recognizes text in `image`, returning the cleaned result (empty if none).
     func recognizeText(in image: CGImage, options: OCROptions = .default) -> String {
-        let processed = OCRImageProcessor.upscaled(
+        // Apply the cheap small-crop upscale.
+        let base = OCRImageProcessor.upscaled(
             image,
             toMinimumHeight: options.minimumUpscaleHeight,
             maxScale: options.maxUpscale
         )
 
-        var resultText = ""
+        guard let first = performRecognition(on: base, options: options) else {
+            return ""
+        }
+
+        var best = first
+
+        // Adaptive second pass: if the recognized text is small, upscale the whole
+        // image so glyphs reach a comfortable size for Vision and try again.
+        let requestedScale = OCRImageProcessor.adaptiveScale(
+            medianGlyphHeightPx: first.medianGlyphHeightPx,
+            targetHeightPx: options.targetGlyphHeightPx,
+            maxScale: options.maxUpscale
+        )
+        let scale = boundedScale(requestedScale, for: base, maxDimension: options.maxProcessedDimension)
+        if scale > 1 {
+            let upscaled = OCRImageProcessor.scaled(base, by: scale)
+            if let second = performRecognition(on: upscaled, options: options),
+               second.weightedConfidence >= first.weightedConfidence {
+                best = second
+            }
+        }
+
+        return OCRTextPostProcessor.clean(best.text)
+    }
+
+    /// Clamps `scale` so the resulting image's longest side stays within `maxDimension`.
+    private func boundedScale(_ scale: CGFloat, for image: CGImage, maxDimension: CGFloat) -> CGFloat {
+        let longestSide = CGFloat(max(image.width, image.height))
+        guard longestSide > 0 else { return 1 }
+        let allowed = maxDimension / longestSide
+        return min(scale, max(1, allowed))
+    }
+
+    // MARK: - Recognition
+
+    private struct RecognitionResult {
+        let text: String
+        /// Median line-box height in pixels, used to decide adaptive upscaling.
+        let medianGlyphHeightPx: CGFloat
+        /// Length-weighted mean top-candidate confidence, used to pick the better pass.
+        let weightedConfidence: Double
+    }
+
+    private func performRecognition(on image: CGImage, options: OCROptions) -> RecognitionResult? {
+        var result: RecognitionResult?
 
         let request = VNRecognizeTextRequest { request, error in
             if let error = error {
@@ -51,22 +117,29 @@ struct OCREngine {
                 return
             }
             guard let observations = request.results as? [VNRecognizedTextObservation] else { return }
-            resultText = options.lineAware
+
+            let text = options.lineAware
                 ? Self.lineAwareText(from: observations)
                 : Self.columnText(from: observations)
+
+            result = RecognitionResult(
+                text: text,
+                medianGlyphHeightPx: Self.medianGlyphHeightPx(from: observations, imageHeight: CGFloat(image.height)),
+                weightedConfidence: Self.weightedConfidence(from: observations)
+            )
         }
 
         configure(request, with: options)
 
-        let handler = VNImageRequestHandler(cgImage: processed, options: [:])
+        let handler = VNImageRequestHandler(cgImage: image, options: [:])
         do {
             try handler.perform([request])
         } catch {
             print("OCR failed: \(error.localizedDescription)")
-            return ""
+            return nil
         }
 
-        return resultText
+        return result
     }
 
     private func configure(_ request: VNRecognizeTextRequest, with options: OCROptions) {
@@ -85,6 +158,36 @@ struct OCREngine {
         } else {
             request.recognitionLanguages = options.languages
         }
+    }
+
+    // MARK: - Measurements
+
+    /// Median of each observation's bounding-box height, converted to pixels.
+    private static func medianGlyphHeightPx(
+        from observations: [VNRecognizedTextObservation],
+        imageHeight: CGFloat
+    ) -> CGFloat {
+        let heights = observations
+            .map { ($0.boundingBox.maxY - $0.boundingBox.minY) * imageHeight }
+            .filter { $0 > 0 }
+            .sorted()
+        guard !heights.isEmpty else { return 0 }
+        let mid = heights.count / 2
+        return heights.count % 2 == 0 ? (heights[mid - 1] + heights[mid]) / 2 : heights[mid]
+    }
+
+    /// Length-weighted mean of the top candidate's confidence across observations.
+    private static func weightedConfidence(from observations: [VNRecognizedTextObservation]) -> Double {
+        var weightedSum = 0.0
+        var totalWeight = 0.0
+        for observation in observations {
+            guard let candidate = observation.topCandidates(1).first else { continue }
+            let weight = Double(max(candidate.string.count, 1))
+            weightedSum += Double(candidate.confidence) * weight
+            totalWeight += weight
+        }
+        guard totalWeight > 0 else { return 0 }
+        return weightedSum / totalWeight
     }
 
     // MARK: - Observation ordering

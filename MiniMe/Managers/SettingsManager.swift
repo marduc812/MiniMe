@@ -35,7 +35,7 @@ enum SleepDuration: String, CaseIterable, Identifiable {
 class SettingsManager: ObservableObject {
     @AppStorage("autoCopyToClipboard") var autoCopyToClipboard = true
     @AppStorage("playSound") var playSound = true
-    @AppStorage("recognitionLanguage") var recognitionLanguage = "en-US"
+    @AppStorage("recognitionLanguage") var recognitionLanguage = "automatic"
     @AppStorage("lineAwareOCR") var lineAwareOCR = true
     @AppStorage("ocrAccuracy") var ocrAccuracy = "accurate"
     @AppStorage("useLanguageCorrection") var useLanguageCorrection = false

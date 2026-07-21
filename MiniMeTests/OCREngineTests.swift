@@ -55,6 +55,31 @@ struct OCREngineTests {
         #expect(text.contains("Kimeno"))
     }
 
+    @Test func recognizesSmallGlyphsInLargeSelection() {
+        // A large selection whose glyphs are individually tiny: the whole-image
+        // upscale never fires here, so recognition relies on glyph-based
+        // adaptive upscaling. This is the most common real-world miss.
+        let image = OCRTestSupport.renderSmallTextOnLargeCanvas(
+            "The quick brown fox jumps",
+            fontSize: 9
+        )
+
+        let text = engine.recognizeText(in: image)
+
+        #expect(text.contains("quick brown fox"))
+    }
+
+    @Test func recognizesLowContrastText() {
+        // Medium gray on light gray: harder than crisp black-on-white. Regression
+        // guard confirming the engine still recovers moderately low-contrast text.
+        let image = OCRTestSupport.renderLowContrastText("Contrast Sample")
+
+        let text = engine.recognizeText(in: image)
+
+        #expect(text.contains("Contrast"))
+        #expect(text.contains("Sample"))
+    }
+
     @Test func returnsEmptyStringForBlankImage() {
         let image = OCRTestSupport.blankImage(width: 200, height: 100)
 

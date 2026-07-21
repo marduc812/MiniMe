@@ -9,6 +9,7 @@ struct ImageToTextSettingsView: View {
     @ObservedObject var settings: SettingsManager
 
     private let languages = [
+        (OCROptions.automaticLanguage, "Automatic (detect)"),
         ("en-US", "English (US)"),
         ("en-GB", "English (UK)"),
         ("de-DE", "German"),
