@@ -36,6 +36,13 @@ struct OCROptions {
     /// Upper bound on the longest side of the image handed to a recognition pass,
     /// so adaptive upscaling of a big selection can't blow up memory.
     var maxProcessedDimension: CGFloat = 4096
+    /// First-pass confidence at/above which a near-target upscale is skipped,
+    /// saving a full second recognition on clean captures.
+    var secondPassSkipConfidence: Double = 0.98
+    /// Requested upscale at/below which a confident first pass is trusted.
+    /// Larger upscales mean genuinely small text, which can produce
+    /// confident-but-partial reads, so those always get a second pass.
+    var secondPassSkipMaxScale: CGFloat = 1.5
 
     static let `default` = OCROptions()
 
@@ -79,7 +86,11 @@ struct OCREngine {
             maxScale: options.maxUpscale
         )
         let scale = boundedScale(requestedScale, for: base, maxDimension: options.maxProcessedDimension)
-        if scale > 1 {
+        if Self.shouldRunSecondPass(
+            requestedScale: scale,
+            firstPassConfidence: first.weightedConfidence,
+            options: options
+        ) {
             let upscaled = OCRImageProcessor.scaled(base, by: scale)
             if let second = performRecognition(on: upscaled, options: options),
                second.weightedConfidence >= first.weightedConfidence {
@@ -119,7 +130,10 @@ struct OCREngine {
             guard let observations = request.results as? [VNRecognizedTextObservation] else { return }
 
             let text = options.lineAware
-                ? Self.lineAwareText(from: observations)
+                ? Self.lineAwareText(
+                    from: observations,
+                    imageSize: CGSize(width: image.width, height: image.height)
+                )
                 : Self.columnText(from: observations)
 
             result = RecognitionResult(
@@ -192,49 +206,102 @@ struct OCREngine {
 
     // MARK: - Observation ordering
 
-    private struct TextItem {
+    struct TextItem {
         let text: String
         let minX: CGFloat
+        let maxX: CGFloat
         let midY: CGFloat
         let height: CGFloat
     }
 
-    /// Groups observations into visual lines and reads left-to-right, top-to-bottom.
-    private static func lineAwareText(from observations: [VNRecognizedTextObservation]) -> String {
+    /// Horizontal gap between same-line items, relative to glyph height, beyond
+    /// which they are treated as separate columns and joined with a tab.
+    private static let columnGapFactor: CGFloat = 2
+
+    /// Groups pixel-space items into visual lines and joins them into text.
+    /// Independent of input order: items are considered top-to-bottom, each one
+    /// joining the vertically closest line whose distance is under half the
+    /// taller of the two heights — so mixed font sizes on one baseline still
+    /// group — or starting a new line. Lines read top-to-bottom, items within a
+    /// line left-to-right.
+    static func composeLineAwareText(from items: [TextItem]) -> String {
+        var lines: [(items: [TextItem], midYSum: CGFloat, maxHeight: CGFloat)] = []
+
+        for item in items.sorted(by: { $0.midY > $1.midY }) {
+            var bestIndex: Int?
+            var bestDistance = CGFloat.greatestFiniteMagnitude
+            for (index, line) in lines.enumerated() {
+                let meanMidY = line.midYSum / CGFloat(line.items.count)
+                let distance = abs(item.midY - meanMidY)
+                if distance < 0.5 * max(line.maxHeight, item.height), distance < bestDistance {
+                    bestIndex = index
+                    bestDistance = distance
+                }
+            }
+            if let index = bestIndex {
+                lines[index].items.append(item)
+                lines[index].midYSum += item.midY
+                lines[index].maxHeight = max(lines[index].maxHeight, item.height)
+            } else {
+                lines.append(([item], item.midY, item.height))
+            }
+        }
+
+        let sortedLines = lines.sorted {
+            $0.midYSum / CGFloat($0.items.count) > $1.midYSum / CGFloat($1.items.count)
+        }
+        return sortedLines.map { joinLine($0.items) }.joined(separator: "\n")
+    }
+
+    /// Joins one visual line left-to-right. Vision usually merges the words of a
+    /// sentence into a single observation, so a large gap between two
+    /// observations is a real one (columns, label/value pairs) and becomes a tab.
+    private static func joinLine(_ items: [TextItem]) -> String {
+        var result = ""
+        var previous: TextItem?
+        for item in items.sorted(by: { $0.minX < $1.minX }) {
+            if let previous {
+                let gap = item.minX - previous.maxX
+                let glyphHeight = max(previous.height, item.height)
+                result += gap > glyphHeight * columnGapFactor ? "\t" : " "
+            }
+            result += item.text
+            previous = item
+        }
+        return result
+    }
+
+    /// Decides whether the adaptive upscale pass is worth a second recognition.
+    static func shouldRunSecondPass(
+        requestedScale: CGFloat,
+        firstPassConfidence: Double,
+        options: OCROptions
+    ) -> Bool {
+        guard requestedScale > 1 else { return false }
+        let nearTarget = requestedScale <= options.secondPassSkipMaxScale
+        let confident = firstPassConfidence >= options.secondPassSkipConfidence
+        return !(nearTarget && confident)
+    }
+
+    /// Maps observations from Vision's normalized bottom-left coordinates into
+    /// pixel space (so horizontal gaps and glyph heights are comparable) and
+    /// composes line-aware text.
+    private static func lineAwareText(
+        from observations: [VNRecognizedTextObservation],
+        imageSize: CGSize
+    ) -> String {
         let items: [TextItem] = observations.compactMap { observation in
             guard let text = observation.topCandidates(1).first?.string else { return nil }
             let box = observation.boundingBox
             return TextItem(
                 text: text,
-                minX: box.minX,
-                midY: (box.minY + box.maxY) / 2,
-                height: box.maxY - box.minY
+                minX: box.minX * imageSize.width,
+                maxX: box.maxX * imageSize.width,
+                midY: (box.minY + box.maxY) / 2 * imageSize.height,
+                height: (box.maxY - box.minY) * imageSize.height
             )
         }
-
-        var lines: [(items: [(text: String, minX: CGFloat)], midY: CGFloat, height: CGFloat)] = []
-        for item in items {
-            var foundLineIndex: Int?
-            for (index, line) in lines.enumerated() {
-                if abs(item.midY - line.midY) < line.height * 0.5 {
-                    foundLineIndex = index
-                    break
-                }
-            }
-            if let index = foundLineIndex {
-                lines[index].items.append((item.text, item.minX))
-            } else {
-                lines.append(([(item.text, item.minX)], item.midY, item.height))
-            }
-        }
-
-        // Vision uses a bottom-left origin, so larger midY means higher on screen.
-        let sortedLines = lines.sorted { $0.midY > $1.midY }
-        return sortedLines.map { line in
-            line.items.sorted { $0.minX < $1.minX }
-                .map { $0.text }
-                .joined(separator: " ")
-        }.joined(separator: "\n")
+        return composeLineAwareText(from: items)
     }
 
     /// Raw Vision ordering, one observation per line.
