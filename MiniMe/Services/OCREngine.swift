@@ -43,6 +43,13 @@ struct OCROptions {
     /// Larger upscales mean genuinely small text, which can produce
     /// confident-but-partial reads, so those always get a second pass.
     var secondPassSkipMaxScale: CGFloat = 1.5
+    /// Aspect ratio (width/height) beyond which a selection counts as a thin
+    /// strip and gets vertical background padding — Vision's detector can
+    /// silently drop whole regions of such strips without it.
+    var stripAspectRatioThreshold: CGFloat = 15
+    /// Vertical padding (px per side) added to thin strips. 12px measured best:
+    /// larger bands start to degrade character accuracy at Retina sizes.
+    var stripPaddingPx: CGFloat = 12
 
     static let `default` = OCROptions()
 
@@ -65,9 +72,19 @@ struct OCREngine {
 
     /// Recognizes text in `image`, returning the cleaned result (empty if none).
     func recognizeText(in image: CGImage, options: OCROptions = .default) -> String {
+        // Thin, wide strips destabilize Vision's detector; pad them vertically
+        // with background before any scaling.
+        let stripPadding = OCRImageProcessor.stripPadding(
+            width: CGFloat(image.width),
+            height: CGFloat(image.height),
+            aspectThreshold: options.stripAspectRatioThreshold,
+            padding: options.stripPaddingPx
+        )
+        let padded = OCRImageProcessor.paddedVertically(image, by: stripPadding)
+
         // Apply the cheap small-crop upscale.
         let base = OCRImageProcessor.upscaled(
-            image,
+            padded,
             toMinimumHeight: options.minimumUpscaleHeight,
             maxScale: options.maxUpscale
         )

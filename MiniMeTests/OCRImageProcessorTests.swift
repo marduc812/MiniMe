@@ -45,4 +45,32 @@ struct OCRImageProcessorTests {
         #expect(result.height == 80)
         #expect(result.width == 800)
     }
+
+    @Test func stripPaddingAppliesOnlyToExtremeAspectRatios() {
+        // A 37:1 code-line strip gets padded; a normal paragraph does not.
+        #expect(OCRImageProcessor.stripPadding(width: 1239, height: 33, aspectThreshold: 15, padding: 12) == 12)
+        #expect(OCRImageProcessor.stripPadding(width: 800, height: 200, aspectThreshold: 15, padding: 12) == 0)
+    }
+
+    @Test func stripPaddingGuardsAgainstDegenerateSizes() {
+        #expect(OCRImageProcessor.stripPadding(width: 1000, height: 0, aspectThreshold: 15, padding: 12) == 0)
+        #expect(OCRImageProcessor.stripPadding(width: 0, height: 30, aspectThreshold: 15, padding: 12) == 0)
+    }
+
+    @Test func paddedVerticallyExtendsHeightOnBothSides() {
+        let image = OCRTestSupport.blankImage(width: 600, height: 30)
+
+        let result = OCRImageProcessor.paddedVertically(image, by: 12)
+
+        #expect(result.width == 600)
+        #expect(result.height == 54)
+    }
+
+    @Test func paddedVerticallyWithZeroPaddingReturnsSameImage() {
+        let image = OCRTestSupport.blankImage(width: 600, height: 30)
+
+        let result = OCRImageProcessor.paddedVertically(image, by: 0)
+
+        #expect(result === image)
+    }
 }

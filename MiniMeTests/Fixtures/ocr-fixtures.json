@@ -7,6 +7,24 @@
         "lazy dog",
         "Kimeno OCR 12345"
       ]
+    },
+    {
+      "image": "code_line_strip.png",
+      "mustContain": [
+        "automationid",
+        "StaticField",
+        "stopPropagation",
+        "onblur"
+      ]
+    },
+    {
+      "image": "code_line_strip_clipped.png",
+      "mustContain": [
+        "automationid",
+        "StaticField",
+        "stopPropagation",
+        "onblur"
+      ]
     }
   ]
 }
