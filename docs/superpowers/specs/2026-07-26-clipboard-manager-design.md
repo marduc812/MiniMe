@@ -268,9 +268,35 @@ panel.becomesKeyOnlyIfNeeded = false
 ```
 
 **Size:** 460 × 520.
-**Position:** centered on the screen containing the mouse
-(`NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? .main`),
-using that screen's `visibleFrame` so the panel is centered in usable space.
+
+**Position:** centered on the screen the user is currently working on. In a
+multi-monitor setup the panel must never appear on a different display from the
+one the user is looking at.
+
+The active screen is resolved in this order:
+
+1. The screen whose `frame` contains `NSEvent.mouseLocation`.
+2. Failing that, the screen whose `frame` contains the frontmost application's
+   focused window origin (`previousApp`, already captured for the paste step).
+3. Failing that, `NSScreen.main`.
+4. Failing that, `NSScreen.screens.first`.
+
+Step 1 alone is not sufficient. `NSEvent.mouseLocation` can fall outside every
+screen's `frame` when displays of different sizes are arranged with an offset,
+leaving dead coordinate space between or beside them — a plain
+`first(where:) ?? .main` returns `nil` there and silently falls back to the
+wrong display. Step 2 covers that case using where the user's actual work is.
+
+`NSScreen.main` is deliberately last: it means "the screen with the key window,"
+which for a menu-bar-only app like MiniMe is unreliable.
+
+Centering uses the resolved screen's `visibleFrame`, not `frame`, so the panel
+is centered within usable space and never sits under the menu bar or Dock. The
+final rect is clamped to `visibleFrame` so an oversized panel on a small display
+stays fully on-screen.
+
+The picker is repositioned every time it opens — the user may have moved to a
+different display since the last invocation.
 
 Visual treatment matches `HistoryView`: `VisualEffectView(material: .hudWindow)`
 background, 14 pt continuous corner radius, hairline white border, layered
@@ -553,6 +579,11 @@ depend on live system state and are verified manually. Manual checklist:
 - Copy-only mode → clipboard updated, no paste
 - Restart the app → file thumbnails still render
 - Multi-monitor → panel centers on the screen holding the mouse
+- Multi-monitor → move to the second display, press the hotkey again, panel
+  follows to that display
+- Multi-monitor with mismatched sizes arranged off-centre → panel still lands on
+  the screen being used, not the primary one
+- Panel opened on a small display → fully on-screen, clear of menu bar and Dock
 
 ---
 
