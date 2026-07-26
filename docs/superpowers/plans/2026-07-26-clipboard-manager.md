@@ -1800,7 +1800,34 @@ git commit -m "Add option-C clipboard shortcut default and ShortcutSet value typ
 
 ---
 
-## Task 8: `HotkeyManager` clipboard hotkey
+## Task 8: Integration — hotkey, settings, UI and app wiring
+
+**This task merges what the plan originally split across Tasks 8–13.** Those
+steps changed `HotkeyManager.updateShortcuts` and `SettingsView`'s signature,
+which breaks five call sites in `MiniMeApp.swift` at once — so the intermediate
+commits did not compile. They are executed here as one task with **one commit**
+that builds green and passes the whole suite.
+
+Work through Parts A–F in order. **Ignore the individual "verify the expected
+failure" and "Commit" steps inside each Part** — they belong to the superseded
+split. The only verification and commit that count are the ones at the end of
+Part F.
+
+**Files:** all of the following, in one commit —
+
+- Modify: `MiniMe/Managers/HotkeyManager.swift`
+- Modify: `MiniMe/Managers/SettingsManager.swift`
+- Create: `MiniMe/Clipboard/ClipboardRow.swift`
+- Create: `MiniMe/Clipboard/ClipboardPickerView.swift`
+- Create: `MiniMe/Clipboard/ClipboardPanelController.swift`
+- Create: `MiniMe/Settings/ClipboardSettingsView.swift`
+- Modify: `MiniMe/Settings/SettingsView.swift`
+- Modify: `MiniMe/Settings/ShortcutsSettingsView.swift`
+- Modify: `MiniMe/App/MiniMeApp.swift`
+
+---
+
+### Part A: `HotkeyManager` clipboard hotkey
 
 **Files:**
 - Modify: `MiniMe/Managers/HotkeyManager.swift`
@@ -1935,7 +1962,7 @@ intentionally red between the two."
 
 ---
 
-## Task 9: `SettingsManager` clipboard settings
+### Part B: `SettingsManager` clipboard settings
 
 **Files:**
 - Modify: `MiniMe/Managers/SettingsManager.swift`
@@ -2038,7 +2065,7 @@ git commit -m "Add clipboard settings and clipboard shortcut to SettingsManager"
 
 ---
 
-## Task 10: `ClipboardRow`
+### Part C: `ClipboardRow`
 
 **Files:**
 - Create: `MiniMe/Clipboard/ClipboardRow.swift`
@@ -2262,7 +2289,7 @@ git commit -m "Add ClipboardRow with type-aware previews and source app attribut
 
 ---
 
-## Task 11: `ClipboardPickerView`
+### Part D: `ClipboardPickerView`
 
 **Files:**
 - Create: `MiniMe/Clipboard/ClipboardPickerView.swift`
@@ -2553,7 +2580,7 @@ git commit -m "Add ClipboardPickerView with search and keyboard-driven selection
 
 ---
 
-## Task 12: `ClipboardPanelController` and `ClipboardSettingsView`
+### Part E: `ClipboardPanelController` and `ClipboardSettingsView`
 
 **Files:**
 - Create: `MiniMe/Clipboard/ClipboardPanelController.swift`
@@ -2866,7 +2893,7 @@ git commit -m "Add clipboard panel controller and Clipboard settings tab"
 
 ---
 
-## Task 13: Wire everything into the app
+### Part F: Wire everything into the app
 
 **Files:**
 - Modify: `MiniMe/App/MiniMeApp.swift`
@@ -3072,14 +3099,35 @@ Expected: `** TEST SUCCEEDED **`. All pre-existing OCR, `CaptureEntry`, `CustomS
 
 - [ ] **Step 10: Commit**
 
+This is the **only** commit for Task 8 — it covers Parts A through F together,
+so the tree compiles and the suite passes at every commit on the branch.
+
 ```bash
-git add MiniMe/App/MiniMeApp.swift MiniMe/Managers/SettingsManager.swift
-git commit -m "Wire clipboard manager into the app, menu bar and hotkeys"
+git add MiniMe/Managers/HotkeyManager.swift \
+        MiniMe/Managers/SettingsManager.swift \
+        MiniMe/Clipboard/ClipboardRow.swift \
+        MiniMe/Clipboard/ClipboardPickerView.swift \
+        MiniMe/Clipboard/ClipboardPanelController.swift \
+        MiniMe/Settings/ClipboardSettingsView.swift \
+        MiniMe/Settings/SettingsView.swift \
+        MiniMe/Settings/ShortcutsSettingsView.swift \
+        MiniMe/App/MiniMeApp.swift
+git commit -m "Add clipboard picker UI and wire the clipboard manager into the app"
 ```
+
+Verify nothing was left behind:
+
+```bash
+git status --short
+```
+
+Expected: no modified or untracked files under `MiniMe/` (the two pre-existing
+`MiniMeTests/Fixtures/` changes from before this branch are unrelated — leave
+them alone).
 
 ---
 
-## Task 14: Manual verification
+## Task 9: Manual verification
 
 **Files:** none — this is a hands-on pass on a real build.
 
