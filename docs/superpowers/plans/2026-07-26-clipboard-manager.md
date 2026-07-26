@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **Platform floor: macOS 13.** Any API newer than 13 needs an `if #available` guard with a working 13 fallback. `NSRunningApplication.activate()` (no args) is macOS 14+ — guard it.
+- **Platform floor: macOS 14.6.** This is what `MACOSX_DEPLOYMENT_TARGET` is actually set to in `project.pbxproj` for all four configurations. (`CLAUDE.md` says "macOS 13+" — that is stale documentation, not the build setting. The build setting governs.) So macOS 14 APIs may be used directly and need no `if #available` guard; guarding one produces a "always true" compiler warning.
 - **App Sandbox is enabled.** Sandbox grants read access to pasteboard file URLs *only at read time*. Thumbnails for file entries MUST be generated at capture time and cached to disk. Never generate a file preview lazily at display time — it will fail after a relaunch.
 - **No external dependencies.** Apple frameworks only.
 - **All manager/store types are `@MainActor`**, matching every existing manager in the codebase.
@@ -1668,12 +1668,9 @@ final class PasteService {
     }
 
     private func activate(_ app: NSRunningApplication?) {
-        guard let app else { return }
-        if #available(macOS 14.0, *) {
-            app.activate()
-        } else {
-            app.activate(options: [.activateIgnoringOtherApps])
-        }
+        // The deployment target is macOS 14.6, so the no-argument activate() is
+        // available unconditionally; activate(options:) is deprecated on 14+.
+        app?.activate()
     }
 
     private static func postCommandV() {
