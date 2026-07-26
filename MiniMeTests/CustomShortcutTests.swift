@@ -119,4 +119,34 @@ struct CustomShortcutTests {
         let spaceShortcut = CustomShortcut(keyCode: 49, modifiers: 0)
         #expect(spaceShortcut.displayString.contains("Space"))
     }
+
+    @Test func defaultClipboardShortcutIsOptionC() {
+        let shortcut = CustomShortcut.defaultClipboard
+        #expect(shortcut.keyCode == 8)
+        #expect(shortcut.displayString == "⌥C")
+    }
+
+    @Test func defaultClipboardMatchesAnOptionCEvent() {
+        let optionOnly = NSEvent.ModifierFlags.option.rawValue
+        #expect(CustomShortcut.defaultClipboard.matches(keyCode: 8, modifiers: optionOnly))
+        #expect(!CustomShortcut.defaultClipboard.matches(keyCode: 8, modifiers: 0))
+    }
+
+    @Test func shortcutSetHoldsAllFiveShortcuts() {
+        let set = ShortcutSet(
+            capture: .defaultCapture,
+            history: .defaultHistory,
+            typeIt: .defaultTypeIt,
+            moveMouse: .defaultMoveMouse,
+            clipboard: .defaultClipboard
+        )
+        #expect(set.clipboard == .defaultClipboard)
+        #expect(set == ShortcutSet(
+            capture: .defaultCapture,
+            history: .defaultHistory,
+            typeIt: .defaultTypeIt,
+            moveMouse: .defaultMoveMouse,
+            clipboard: .defaultClipboard
+        ))
+    }
 }

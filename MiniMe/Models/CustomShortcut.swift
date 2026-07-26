@@ -14,6 +14,7 @@ struct CustomShortcut: Codable, Equatable, Sendable {
     static nonisolated let defaultHistory = CustomShortcut(keyCode: 4, modifiers: 1179648)
     static nonisolated let defaultTypeIt = CustomShortcut(keyCode: 18, modifiers: 1179648) // ⌘⇧1
     static nonisolated let defaultMoveMouse = CustomShortcut(keyCode: 46, modifiers: 1179648) // ⌘⇧M
+    static nonisolated let defaultClipboard = CustomShortcut(keyCode: 8, modifiers: 524288) // ⌥C
 
     var displayString: String {
         var parts: [String] = []
@@ -82,4 +83,17 @@ struct CustomShortcut: Codable, Equatable, Sendable {
         let actualModifiers = eventModifiers & relevantModifiersMask
         return eventKeyCode == keyCode && actualModifiers == expectedModifiers
     }
+}
+
+/// Every user-configurable global shortcut, passed to `HotkeyManager` as one value.
+///
+/// This replaces `updateShortcuts(capture:history:typeIt:moveMouse:)`. With a fifth
+/// shortcut the positional form would mean five call sites each threading five
+/// arguments, where transposing two of the same type is silent and easy.
+struct ShortcutSet: Equatable, Sendable {
+    var capture: CustomShortcut
+    var history: CustomShortcut
+    var typeIt: CustomShortcut
+    var moveMouse: CustomShortcut
+    var clipboard: CustomShortcut
 }
