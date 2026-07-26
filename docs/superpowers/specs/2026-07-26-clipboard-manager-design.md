@@ -273,22 +273,24 @@ panel.becomesKeyOnlyIfNeeded = false
 multi-monitor setup the panel must never appear on a different display from the
 one the user is looking at.
 
-The active screen is resolved in this order:
+The active screen is resolved by `ActiveScreenResolver`:
 
 1. The screen whose `frame` contains `NSEvent.mouseLocation`.
-2. Failing that, the screen whose `frame` contains the frontmost application's
-   focused window origin (`previousApp`, already captured for the paste step).
-3. Failing that, `NSScreen.main`.
-4. Failing that, `NSScreen.screens.first`.
+2. Failing that, the screen **nearest** to the mouse, by squared distance from
+   the point to the rect.
 
-Step 1 alone is not sufficient. `NSEvent.mouseLocation` can fall outside every
-screen's `frame` when displays of different sizes are arranged with an offset,
-leaving dead coordinate space between or beside them — a plain
-`first(where:) ?? .main` returns `nil` there and silently falls back to the
-wrong display. Step 2 covers that case using where the user's actual work is.
+Step 1 alone is not sufficient. `CGRect.contains` excludes the `maxX`/`maxY`
+edges, so a cursor pushed hard against the top or right edge of a display can
+match no screen at all; the same holds in the dead coordinate space beside a
+smaller display in an offset arrangement. The common
+`first(where:) ?? NSScreen.main` idiom returns `nil` in exactly those cases and
+falls back to the wrong display.
 
-`NSScreen.main` is deliberately last: it means "the screen with the key window,"
-which for a menu-bar-only app like MiniMe is unreliable.
+Nearest-by-distance is used rather than `NSScreen.main` because `NSScreen.main`
+means "the screen with the key window," which for a menu-bar-only app like MiniMe
+is unreliable. Distance always resolves to the display the cursor is closest to,
+which is the one the user is working on. It is also a pure function of a point
+and a list of rects, so it is unit-testable without a real multi-monitor rig.
 
 Centering uses the resolved screen's `visibleFrame`, not `frame`, so the panel
 is centered within usable space and never sits under the menu bar or Dock. The
@@ -482,7 +484,8 @@ configured shortcut, following the pattern of the existing items. The fallback
 | `PasteService` | Write to pasteboard, reactivate previous app, synthesize ⌘V | `TypingService` (permission check), CoreGraphics |
 | `ClipboardPickerView` | Search, list, keyboard handling, empty states | `ClipboardStore` |
 | `ClipboardRow` | Render one entry | `ClipboardEntry` |
-| `ClipboardPanelController` | Panel lifecycle, positioning, click-outside, focus capture | AppKit, `ClipboardPickerView` |
+| `ActiveScreenResolver` | Resolve the screen the user is on; center and clamp a rect within it | AppKit (pure core takes plain rects) |
+| `ClipboardPanelController` | Panel lifecycle, positioning, click-outside, focus capture | AppKit, `ClipboardPickerView`, `ActiveScreenResolver` |
 | `ClipboardSettingsView` | Settings UI | `SettingsManager` |
 
 The store never touches AppKit pasteboard APIs and the monitor never touches
@@ -506,8 +509,12 @@ MiniMe/Clipboard/ClipboardPickerView.swift
 MiniMe/Clipboard/ClipboardRow.swift
 MiniMe/Services/PasteService.swift
 MiniMe/Settings/ClipboardSettingsView.swift
+MiniMe/UI/ActiveScreenResolver.swift
 MiniMeTests/ClipboardEntryTests.swift
 MiniMeTests/ClipboardStoreTests.swift
+MiniMeTests/ActiveScreenResolverTests.swift
+MiniMeTests/ClipboardThumbnailerTests.swift
+MiniMeTests/ClipboardMonitorTests.swift
 ```
 
 **Modified**
@@ -521,8 +528,14 @@ MiniMe/Settings/SettingsView.swift        Clipboard tab, width 680
 MiniMe/Settings/ShortcutsSettingsView.swift  Clipboard section
 ```
 
-`QuickLookThumbnailing.framework` must be linked in the Xcode target. No external
-dependencies are added.
+**Xcode project:** the project uses `PBXFileSystemSynchronizedRootGroup`
+(`objectVersion = 77`), so files created under `MiniMe/` and `MiniMeTests/` are
+picked up by their targets automatically. **No `project.pbxproj` edits are
+needed.** Swift autolinking resolves `import QuickLookThumbnailing` with no
+"Link Binary With Libraries" entry. No external dependencies are added.
+
+The new `ActiveScreenResolver.swift` lives in `MiniMe/UI/` alongside the other
+AppKit helpers.
 
 ---
 
@@ -564,9 +577,34 @@ dependencies are added.
 - Orphan sweep deletes unreferenced blob files on load
 - Corrupt JSON yields an empty store rather than a crash
 
+`ActiveScreenResolverTests`
+
+- Mouse inside one screen's frame selects that screen
+- Mouse exactly on a screen's `maxX`/`maxY` edge still resolves to that screen
+  (the `CGRect.contains` exclusion case)
+- Mouse in dead space between two offset displays resolves to the nearer one
+- Single-screen setup always resolves to index 0
+- Empty screen list returns `nil` rather than crashing
+- `centeredRect` centers within `visibleFrame`
+- `centeredRect` clamps a panel larger than the screen to stay fully on-screen
+
+`ClipboardMonitorTests` (against a private `NSPasteboard(name:)`, not `.general`)
+
+- Text write is captured as a `.text` entry
+- Unchanged `changeCount` produces no duplicate entry
+- A pasteboard carrying `org.nspasteboard.ConcealedType` is skipped
+- `acknowledgeSelfWrite()` suppresses ingestion of MiniMe's own write
+- Whitespace-only text is not captured
+
+`ClipboardThumbnailerTests`
+
+- `pngData(from:fitting:)` downsamples a 1000×500 image to fit 240 on the long
+  edge while preserving aspect ratio
+- An image already smaller than the limit is not upscaled
+
 ### Not unit tested
 
-Pasteboard polling, QuickLook thumbnailing, ⌘V synthesis, and panel positioning
+QuickLook file thumbnailing, ⌘V synthesis, and real multi-monitor placement
 depend on live system state and are verified manually. Manual checklist:
 
 - Copy text in Safari → appears with Safari icon and name
