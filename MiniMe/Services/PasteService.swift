@@ -31,9 +31,13 @@ final class PasteService {
         }
     }
 
-    /// Delay between reactivating the previous app and posting ⌘V. Without it the
-    /// keystroke can arrive before the app has taken first responder back.
-    private static let activationSettleDelay: TimeInterval = 0.15
+    /// How long to wait for the target app to actually come frontmost before
+    /// giving up on the paste.
+    private static let activationTimeout: TimeInterval = 1.0
+    /// Interval between checks for activation.
+    private static let activationPollInterval: TimeInterval = 0.02
+    /// Brief settle after the app is frontmost, so it has taken first responder.
+    private static let firstResponderSettleDelay: TimeInterval = 0.05
 
     /// Writes `entry` to the general pasteboard.
     /// Returns `false` if the entry's backing blob or files no longer exist.
@@ -62,21 +66,38 @@ final class PasteService {
 
     /// Reactivates `app` and synthesizes ⌘V. Does nothing if Accessibility
     /// permission is not granted — the caller has already put the entry on the
-    /// clipboard, so the user can still paste manually.
+    /// clipboard, so the user can still paste manually. No known app to return to:
+    /// the content is already on the clipboard, and firing ⌘V blindly into whatever
+    /// is frontmost would be worse than letting the user paste it themselves.
     func paste(into app: NSRunningApplication?) {
         guard TypingService.shared.ensureAccessibilityPermission() else { return }
+        guard let app else { return }
 
-        activate(app)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.activationSettleDelay) {
-            Self.postCommandV()
-        }
-    }
-
-    private func activate(_ app: NSRunningApplication?) {
         // The deployment target is macOS 14.6, so the no-argument activate() is
         // available unconditionally; activate(options:) is deprecated on 14+.
-        app?.activate()
+        app.activate()
+        waitForActivation(of: app, deadline: Date().addingTimeInterval(Self.activationTimeout))
+    }
+
+    /// Polls until `app` is frontmost, then posts ⌘V. Gives up silently at the
+    /// deadline — the entry is already on the clipboard, so degrading to
+    /// copy-only is the safe failure, and pasting into the wrong app is not.
+    private func waitForActivation(of app: NSRunningApplication, deadline: Date) {
+        if NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.firstResponderSettleDelay) {
+                Self.postCommandV()
+            }
+            return
+        }
+
+        guard Date() < deadline else {
+            print("[PasteService] \(app.localizedName ?? "target app") did not activate in time; skipping paste")
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.activationPollInterval) { [weak self] in
+            self?.waitForActivation(of: app, deadline: deadline)
+        }
     }
 
     private static func postCommandV() {
