@@ -49,19 +49,20 @@ enum ClipboardThumbnailer {
         return rep.representation(using: .png, properties: [:])
     }
 
-    /// Encodes `image` as PNG at its native size.
+    /// Encodes `image` as PNG at its native *pixel* resolution.
     ///
-    /// Routed through `pngData(from:fitting:)` with `maxDimension` set to the
-    /// image's own largest edge, which makes the internal scale factor exactly 1
-    /// (never upscales, never downscales). Going through `image.tiffRepresentation`
-    /// instead picks up the NSImage backing store's display scale factor (e.g. 2x
-    /// on Retina, captured via `lockFocus`), silently doubling the output pixel
-    /// dimensions relative to `image.size` — the same pitfall `pngData` avoids by
-    /// building an explicit pixel-sized bitmap rep.
+    /// This is the fidelity path: a copied image gets pasted back into another
+    /// app later, so it must preserve the source's full pixel buffer, not its
+    /// point size. `image.tiffRepresentation` returns the backing store's native
+    /// representation (e.g. 2x pixel density on a Retina-captured source), which
+    /// is exactly what we want here — unlike `pngData(from:fitting:)`, which
+    /// intentionally works in points for the lossy thumbnail case.
     static func fullSizePNGData(from image: NSImage) -> Data? {
         let size = image.size
         guard size.width > 0, size.height > 0 else { return nil }
-        return pngData(from: image, fitting: max(size.width, size.height))
+        guard let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.representation(using: .png, properties: [:])
     }
 
     /// A cached preview for a file: a real QuickLook thumbnail where one exists

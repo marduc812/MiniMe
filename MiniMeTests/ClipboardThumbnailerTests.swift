@@ -53,12 +53,17 @@ struct ClipboardThumbnailerTests {
         #expect(ClipboardThumbnailer.pngData(from: empty, fitting: 240) == nil)
     }
 
-    @Test func fullSizeEncodingPreservesDimensions() throws {
-        let data = try #require(ClipboardThumbnailer.fullSizePNGData(from: makeImage(width: 300, height: 200)))
+    @Test func fullSizeEncodingPreservesPixelDimensions() throws {
+        let image = makeImage(width: 300, height: 200)
+        let expected = try #require(image.representations.first)
+        let data = try #require(ClipboardThumbnailer.fullSizePNGData(from: image))
         let size = try #require(pixelSize(of: data))
 
-        #expect(size.width == 300)
-        #expect(size.height == 200)
+        #expect(Int(size.width) == expected.pixelsWide)
+        #expect(Int(size.height) == expected.pixelsHigh)
+        // Full-size encoding must not downsample a Retina-backed source.
+        #expect(size.width >= 300)
+        #expect(size.height >= 200)
     }
 
     @Test func fileThumbnailFallsBackToAnIconForAnyExistingFile() async throws {
