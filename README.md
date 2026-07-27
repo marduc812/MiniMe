@@ -6,9 +6,6 @@
   <p>This was made for my personal use, and made public in case somebody else finds those deature useful<p>
 </div>
 
-
-https://github.com/user-attachments/assets/1ce8e2f5-3c4f-4365-a2ab-2ad58d200ddc
-
 ## Features
 
 ### OCR & Capture
@@ -29,23 +26,34 @@ https://github.com/user-attachments/assets/1ce8e2f5-3c4f-4365-a2ab-2ad58d200ddc
 - **Countdown Sound** - Optional audio tick each second of the countdown
 - **Custom Shortcut** - Dedicated global hotkey for Type It
 
-### History
-- **Capture History** - Searchable history of the last 100 captures
-- **Source App Tracking** - Each capture records which application was active, shown with the app's icon
-- **Quick Access** - Open history from the menu bar or a global hotkey
+### Clipboard Manager
+- **Automatic Clipboard History** - Every copy on your Mac (text, images, files) is saved automatically, including OCR captures - no separate history to manage
+- **Quick Picker** - Searchable popover opened with a global hotkey; navigate with arrow keys and paste any of the top 9 items with `⌘1`–`⌘9`
+- **Source App Tracking** - Each entry records which app it was copied from, shown with the app's icon
+- **Copy or Copy & Paste** - Choose whether picking an item just copies it or also pastes it straight into the app you came from
+- **Images & Files** - Optionally capture images and file references from the clipboard, not just text
+- **Password Manager Aware** - Entries marked "concealed" by apps like password managers are never stored
+- **Configurable History Limit** - Keep 50, 100, 200, or 500 items
+- **Clear History** - Wipe all clipboard history in one click
+
+### Scheduled Actions
+- **Delayed Typing** - Schedule MiniMe to type text and/or press a key combo after a set delay (seconds, minutes, or hours)
+- **Repeat** - Optionally repeat the action on the same interval instead of firing once
+- **Runs in the Background** - Fires into whichever window is focused when the timer elapses; pair with Prevent Sleep for long delays
+
+### Move Mouse
+- **Keep Sessions Awake** - Periodically drifts the cursor to random points in a 600×600 area to prevent idle timeouts and screen locks
+- **Configurable Interval** - Set the minimum and maximum seconds between moves
+- **Natural Movement** - Smooth, eased glides rather than instant jumps, so it registers as real activity
 
 ### System
 - **Prevent Sleep** - Keep your Mac awake for a set duration: 10 min, 30 min, 1 hr, 2 hrs, 4 hrs, 8 hrs, or indefinitely. Disable any time from the menu bar
+- **Per-Tool On/Off Switches** - Turn Capture, Type It, Clipboard, Move Mouse, and Prevent Sleep on or off individually; disabled tools disappear from the menu bar and lose their hotkey
 - **Auto-Update Check** - Silently checks for new GitHub releases once per day; shows a notification in Settings → About when an update is available
 - **Launch at Login** - Optional startup on system boot
-- **Customizable Shortcuts** - Configure global hotkeys for capture, history, and Type It
+- **Customizable Shortcuts** - Configure global hotkeys for every tool
 - **Native macOS Experience** - Built with SwiftUI and AppKit, no external dependencies
 
-## Screenshots
-
-![History](assets/history.png)
-
-![Settings](assets/settings.png)
 
 ## Requirements
 
@@ -96,7 +104,8 @@ Click **Prevent Sleep** in the menu bar and choose a duration. A "Turn Off Preve
 |--------|----------|
 | Capture | `⌘⇧2` |
 | Type It | `⌘⇧1` |
-| History | `⌘⇧H` |
+| Clipboard picker | `⌥C` |
+| Start / Stop Move Mouse | `⌘⇧M` |
 | Settings | `⌘,` |
 | Quit | `⌘Q` |
 
@@ -107,10 +116,9 @@ Shortcuts can be fully customized in Settings → Shortcuts.
 ### General
 - Launch at login
 - Show/hide menu bar icon
-- Prevent sleep (with duration)
+- Per-tool on/off switches (Capture, Type It, Clipboard, Move Mouse, Prevent Sleep)
 
 ### Capture (Image to Text)
-- Auto-copy to clipboard
 - Play sound on capture
 - Recognition language
 - OCR accuracy (fast / accurate)
@@ -121,8 +129,22 @@ Shortcuts can be fully customized in Settings → Shortcuts.
 - Countdown duration (1–10 seconds)
 - Sound on countdown
 
+### Scheduler
+- Delay before firing (seconds / minutes / hours)
+- Repeat on the same interval
+- Text to type and/or a key combo to press
+
+### Move Mouse
+- Minimum and maximum seconds between moves
+
+### Clipboard
+- History limit (50 / 100 / 200 / 500 items)
+- Copy-only vs. copy & paste on selection
+- Capture images and files
+- Ignore password-manager (concealed) clipboard content
+
 ### Shortcuts
-- Customize global hotkeys for Capture, History, and Type It
+- Customize global hotkeys for Capture, Type It, Clipboard, and Move Mouse
 
 ### About
 - Current version

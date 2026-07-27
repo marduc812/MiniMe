@@ -106,7 +106,8 @@ struct OCREngine {
         if Self.shouldRunSecondPass(
             requestedScale: scale,
             firstPassConfidence: first.weightedConfidence,
-            options: options
+            options: options,
+            isStripPadded: stripPadding > 0
         ) {
             let upscaled = OCRImageProcessor.scaled(base, by: scale)
             if let second = performRecognition(on: upscaled, options: options),
@@ -289,12 +290,18 @@ struct OCREngine {
     }
 
     /// Decides whether the adaptive upscale pass is worth a second recognition.
+    /// `isStripPadded` marks captures that went through the thin-strip padding
+    /// path: Vision can silently drop edge characters there while still
+    /// reporting 1.0 confidence, so the near-target/confident skip — which
+    /// exists to trust a genuinely clean first pass — must not apply.
     static func shouldRunSecondPass(
         requestedScale: CGFloat,
         firstPassConfidence: Double,
-        options: OCROptions
+        options: OCROptions,
+        isStripPadded: Bool = false
     ) -> Bool {
         guard requestedScale > 1 else { return false }
+        if isStripPadded { return true }
         let nearTarget = requestedScale <= options.secondPassSkipMaxScale
         let confident = firstPassConfidence >= options.secondPassSkipConfidence
         return !(nearTarget && confident)

@@ -8,15 +8,16 @@ import SwiftUI
 struct SettingsRowIcon: View {
     let systemName: String
     let color: Color
+    var size: CGFloat = 26
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
                 .fill(color)
-                .frame(width: 26, height: 26)
             Image(systemName: systemName)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: size * 0.5, weight: .semibold))
                 .foregroundStyle(.white)
         }
+        .frame(width: size, height: size)
     }
 }

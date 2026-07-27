@@ -9,52 +9,46 @@ struct MouseMoverSettingsView: View {
     @ObservedObject var settings: SettingsManager
     @ObservedObject var mover = MouseMoverManager.shared
 
+    private let tint = Color.indigo
+
     var body: some View {
         Form {
             Section("Interval between moves") {
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "arrow.down.to.line", color: .indigo)
+                SettingsRow(icon: "arrow.down.to.line", tint: tint) {
                     Text("At least")
-                        .fixedSize()
                     Spacer()
-                    Stepper(value: $settings.mouseMoverMinSeconds, in: 1...3600) {
-                        Text("\(settings.mouseMoverMinSeconds) sec")
-                            .monospacedDigit()
-                            .frame(minWidth: 52, alignment: .trailing)
-                    }
-                    .fixedSize()
+                    Text("\(settings.mouseMoverMinSeconds) sec")
+                        .monospacedDigit()
+                        .frame(minWidth: 52, alignment: .trailing)
+                    Stepper("", value: $settings.mouseMoverMinSeconds, in: 1...3600)
+                        .labelsHidden()
                 }
                 .disabled(mover.isArmed)
 
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "arrow.up.to.line", color: .indigo)
+                SettingsRow(icon: "arrow.up.to.line", tint: tint) {
                     Text("At most")
-                        .fixedSize()
                     Spacer()
-                    Stepper(value: $settings.mouseMoverMaxSeconds,
-                            in: settings.mouseMoverMinSeconds...3600) {
-                        Text("\(max(settings.mouseMoverMaxSeconds, settings.mouseMoverMinSeconds)) sec")
-                            .monospacedDigit()
-                            .frame(minWidth: 52, alignment: .trailing)
-                    }
-                    .fixedSize()
+                    Text("\(max(settings.mouseMoverMaxSeconds, settings.mouseMoverMinSeconds)) sec")
+                        .monospacedDigit()
+                        .frame(minWidth: 52, alignment: .trailing)
+                    Stepper("", value: $settings.mouseMoverMaxSeconds,
+                            in: settings.mouseMoverMinSeconds...3600)
+                        .labelsHidden()
                 }
                 .disabled(mover.isArmed)
             }
 
             Section {
                 if mover.isArmed {
-                    HStack(spacing: 10) {
-                        SettingsRowIcon(systemName: "cursorarrow.motionlines", color: .green)
+                    SettingsRow(icon: "cursorarrow.motionlines", tint: .green) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Moving")
                                 .fontWeight(.medium)
                             if let next = mover.nextMoveDate {
-                                Text("Next move in ")
+                                let countdown = Text(timerInterval: Date()...next, countsDown: true)
+                                    .monospacedDigit()
+                                Text("Next move in \(countdown)")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                + Text(timerInterval: Date()...next, countsDown: true)
-                                    .font(.caption.monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -66,8 +60,7 @@ struct MouseMoverSettingsView: View {
                         }
                     }
                 } else {
-                    HStack(spacing: 10) {
-                        SettingsRowIcon(systemName: "play.fill", color: .green)
+                    SettingsRow(icon: "play.fill", tint: .green) {
                         Text("Start moving the mouse")
                         Spacer()
                         Button {
@@ -89,6 +82,5 @@ struct MouseMoverSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.top, 4)
     }
 }

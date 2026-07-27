@@ -14,34 +14,52 @@ struct ClipboardPickerView: View {
 
     @State private var searchText = ""
     @State private var selectedID: UUID?
+    @State private var hoveredID: UUID?
     @State private var keyMonitor: Any?
     @FocusState private var searchFocused: Bool
+
+    private static let listWidth: CGFloat = 292
 
     private var filteredEntries: [ClipboardEntry] {
         store.entries.filter { $0.matches(query: searchText) }
     }
 
+    /// The entry shown in the detail pane: hover wins so mousing over the list
+    /// previews instantly, otherwise the keyboard selection.
+    private var previewEntry: ClipboardEntry? {
+        let visible = filteredEntries
+        if let hoveredID, let entry = visible.first(where: { $0.id == hoveredID }) {
+            return entry
+        }
+        if let selectedID, let entry = visible.first(where: { $0.id == selectedID }) {
+            return entry
+        }
+        return visible.first
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            header
             searchBar
 
-            Divider().opacity(0.5).padding(.horizontal, 12)
+            Divider().opacity(0.5)
 
             if !isEnabled {
                 disabledState
             } else if filteredEntries.isEmpty {
                 emptyState
             } else {
-                list
+                splitContent
             }
 
             if !store.entries.isEmpty {
-                Divider().opacity(0.5).padding(.horizontal, 12)
+                Divider().opacity(0.5)
                 footer
             }
         }
-        .frame(width: 460, height: 520)
+        .frame(
+            width: ClipboardPanelController.panelSize.width,
+            height: ClipboardPanelController.panelSize.height
+        )
         .background {
             ZStack {
                 VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
@@ -63,37 +81,18 @@ struct ClipboardPickerView: View {
         .onChange(of: searchText) { _, _ in
             // Keep the highlight on a row that is actually visible.
             selectedID = filteredEntries.first?.id
+            hoveredID = nil
         }
     }
 
     // MARK: - Sections
 
-    private var header: some View {
-        HStack {
-            Image(systemName: "doc.on.clipboard")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 14))
-            Text("Clipboard")
-                .font(.system(size: 14, weight: .semibold))
-            Spacer()
-            Text("\(store.entries.count)")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(.ultraThinMaterial, in: Capsule())
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 12)
-    }
-
     private var searchBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.tertiary)
-                .font(.system(size: 12))
-            TextField("Search…", text: $searchText)
+                .font(.system(size: 13))
+            TextField("Search clipboard…", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .focused($searchFocused)
@@ -105,17 +104,37 @@ struct ClipboardPickerView: View {
                 }
                 .buttonStyle(.plain)
             }
+            Text("\(store.entries.count)")
+                .font(.system(size: 10.5, weight: .medium).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2)
+                .background(.quaternary.opacity(0.4), in: Capsule())
         }
-        .padding(10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    private var splitContent: some View {
+        HStack(spacing: 0) {
+            list
+                .frame(width: Self.listWidth)
+
+            Divider().opacity(0.5)
+
+            ClipboardDetailView(
+                entry: previewEntry,
+                store: store,
+                onCopy: { onSelect($0) },
+                onDelete: { delete($0) }
+            )
+        }
     }
 
     private var list: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 2) {
+                LazyVStack(spacing: 1) {
                     ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
                         ClipboardRow(
                             entry: entry,
@@ -123,12 +142,19 @@ struct ClipboardPickerView: View {
                             shortcutIndex: index < 9 ? index + 1 : nil,
                             isSelected: entry.id == selectedID,
                             onSelect: { onSelect(entry) },
-                            onDelete: { store.delete(id: entry.id) }
+                            onDelete: { delete(entry) },
+                            onHoverChange: { hovering in
+                                if hovering {
+                                    hoveredID = entry.id
+                                } else if hoveredID == entry.id {
+                                    hoveredID = nil
+                                }
+                            }
                         )
                         .id(entry.id)
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 7)
                 .padding(.vertical, 6)
             }
             .onChange(of: selectedID) { _, id in
@@ -185,7 +211,7 @@ struct ClipboardPickerView: View {
 
     private var footer: some View {
         HStack {
-            Text("⌘1–9 to paste · ↑↓ to move · esc to close")
+            Text("↑↓ move · ↩ paste · ⌘1–9 quick paste · esc close")
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
             Spacer()
@@ -198,8 +224,22 @@ struct ClipboardPickerView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.red.opacity(0.9))
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
         .padding(.vertical, 10)
+    }
+
+    // MARK: - Mutation
+
+    private func delete(_ entry: ClipboardEntry) {
+        let visible = filteredEntries
+        // Move the highlight to a neighbour before the row disappears.
+        if selectedID == entry.id,
+           let index = visible.firstIndex(where: { $0.id == entry.id }) {
+            let remaining = visible.filter { $0.id != entry.id }
+            selectedID = remaining.indices.contains(index) ? remaining[index].id : remaining.last?.id
+        }
+        if hoveredID == entry.id { hoveredID = nil }
+        store.delete(id: entry.id)
     }
 
     // MARK: - Keyboard
@@ -254,5 +294,92 @@ struct ClipboardPickerView: View {
         let current = selectedID.flatMap { id in visible.firstIndex { $0.id == id } } ?? -1
         let next = min(max(current + offset, 0), visible.count - 1)
         selectedID = visible[next].id
+        // Keyboard navigation takes over the preview from any stale hover.
+        hoveredID = nil
     }
 }
+
+#if DEBUG
+private extension ClipboardStore {
+    /// Store seeded with representative entries, backed by a throwaway temp
+    /// directory so previews never touch real clipboard history.
+    static func mock() -> ClipboardStore {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MiniMePreview-\(UUID().uuidString)", isDirectory: true)
+        let store = ClipboardStore(directory: directory, maxEntries: 200)
+
+        store.add(ClipboardEntry(
+            content: .text("https://developer.apple.com/documentation/swiftui/scrollviewreader"),
+            timestamp: Date().addingTimeInterval(-30),
+            sourceAppName: "Safari",
+            sourceAppBundleID: "com.apple.Safari"
+        ))
+        store.add(ClipboardEntry(
+            content: .text("""
+                Fix the flaky ClipboardStoreTests by seeding a fresh temp \
+                directory per test instead of sharing Application Support.
+                """),
+            timestamp: Date().addingTimeInterval(-60 * 12),
+            sourceAppName: "Xcode",
+            sourceAppBundleID: "com.apple.dt.Xcode"
+        ))
+        store.add(ClipboardEntry(
+            content: .image(fileName: "preview-image.png", pixelWidth: 1920, pixelHeight: 1080),
+            timestamp: Date().addingTimeInterval(-60 * 60 * 2),
+            sourceAppName: "Preview",
+            sourceAppBundleID: "com.apple.Preview"
+        ))
+        store.add(ClipboardEntry(
+            content: .files(paths: ["/Users/marduc812/Downloads/invoice.pdf"]),
+            timestamp: Date().addingTimeInterval(-60 * 60 * 5),
+            sourceAppName: "Finder",
+            sourceAppBundleID: "com.apple.finder"
+        ))
+        store.add(ClipboardEntry(
+            content: .files(paths: ["/tmp/does-not-exist/report.key"]),
+            timestamp: Date().addingTimeInterval(-60 * 60 * 24 * 3),
+            sourceAppName: "Finder",
+            sourceAppBundleID: "com.apple.finder"
+        ))
+        store.add(ClipboardEntry(
+            content: .text("kimeno"),
+            timestamp: Date().addingTimeInterval(-60 * 60 * 24 * 30 * 2)
+        ))
+
+        return store
+    }
+}
+
+#Preview("Populated") {
+    ClipboardPickerView(
+        store: .mock(),
+        isEnabled: true,
+        onSelect: { _ in },
+        onClose: {},
+        onOpenSettings: {}
+    )
+}
+
+#Preview("Empty") {
+    ClipboardPickerView(
+        store: ClipboardStore(
+            directory: FileManager.default.temporaryDirectory
+                .appendingPathComponent("MiniMePreview-\(UUID().uuidString)", isDirectory: true)
+        ),
+        isEnabled: true,
+        onSelect: { _ in },
+        onClose: {},
+        onOpenSettings: {}
+    )
+}
+
+#Preview("Disabled") {
+    ClipboardPickerView(
+        store: .mock(),
+        isEnabled: false,
+        onSelect: { _ in },
+        onClose: {},
+        onOpenSettings: {}
+    )
+}
+#endif

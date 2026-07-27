@@ -54,3 +54,10 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# OCR fixtures often contain real captured text (personal correspondence,
+# screenshots from daily use) — keep the whole corpus local, never commit it.
+MiniMeTests/Fixtures/
+
+# Superpowers working docs (plans/specs) stay local
+docs/superpowers/

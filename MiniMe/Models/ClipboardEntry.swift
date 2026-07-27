@@ -64,6 +64,12 @@ struct ClipboardEntry: Identifiable, Codable, Hashable {
         }
     }
 
+    /// True for file entries whose underlying files have since moved or been deleted.
+    var hasMissingFiles: Bool {
+        guard case .files(let paths) = content else { return false }
+        return !paths.allSatisfy { FileManager.default.fileExists(atPath: $0) }
+    }
+
     /// True if `query` appears in the title, or — for text and file entries — in
     /// the full text or any file name. Image entries are matchable by title only.
     func matches(query: String) -> Bool {

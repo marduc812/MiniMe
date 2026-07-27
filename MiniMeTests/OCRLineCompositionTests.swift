@@ -145,4 +145,18 @@ struct OCRLineCompositionTests {
 
         #expect(run)
     }
+
+    @Test func runsSecondPassOnStripEvenWhenNearTargetAndConfident() {
+        // Vision's detector can silently drop edge characters on thin, wide
+        // strips while still reporting 1.0 confidence, so the near-target/
+        // confident skip must not apply once strip padding fired.
+        let run = OCREngine.shouldRunSecondPass(
+            requestedScale: 1.3,
+            firstPassConfidence: 0.99,
+            options: .default,
+            isStripPadded: true
+        )
+
+        #expect(run)
+    }
 }

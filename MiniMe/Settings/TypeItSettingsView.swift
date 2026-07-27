@@ -8,11 +8,12 @@ import SwiftUI
 struct TypeItSettingsView: View {
     @ObservedObject var settings: SettingsManager
 
+    private let tint = Color.purple
+
     var body: some View {
         Form {
             Section("Behaviour") {
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "timer", color: .purple)
+                SettingsRow(icon: "timer", tint: tint) {
                     Text("Countdown before typing")
                     Spacer()
                     Picker("", selection: $settings.typeItCountdownDuration) {
@@ -23,8 +24,7 @@ struct TypeItSettingsView: View {
                     .labelsHidden()
                     .frame(width: 70)
                 }
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "speaker.wave.2.fill", color: .purple)
+                SettingsRow(icon: "speaker.wave.2.fill", tint: tint) {
                     Toggle("Sound on countdown", isOn: $settings.typeItCountdownSound)
                 }
             }
@@ -36,6 +36,5 @@ struct TypeItSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.top, 4)
     }
 }

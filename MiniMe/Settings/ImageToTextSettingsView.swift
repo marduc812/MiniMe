@@ -8,6 +8,8 @@ import SwiftUI
 struct ImageToTextSettingsView: View {
     @ObservedObject var settings: SettingsManager
 
+    private let tint = Color.orange
+
     private let languages = [
         (OCROptions.automaticLanguage, "Automatic (detect)"),
         ("en-US", "English (US)"),
@@ -31,15 +33,13 @@ struct ImageToTextSettingsView: View {
     var body: some View {
         Form {
             Section("Output") {
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "speaker.wave.2.fill", color: .green)
+                SettingsRow(icon: "speaker.wave.2.fill", tint: tint) {
                     Toggle("Play sound on capture", isOn: $settings.playSound)
                 }
             }
 
             Section("Recognition") {
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "globe", color: .blue)
+                SettingsRow(icon: "globe", tint: tint) {
                     Picker("Language", selection: $settings.recognitionLanguage) {
                         ForEach(languages, id: \.0) { code, name in
                             Text(name).tag(code)
@@ -47,8 +47,7 @@ struct ImageToTextSettingsView: View {
                     }
                     .pickerStyle(.menu)
                 }
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "dial.medium.fill", color: .orange)
+                SettingsRow(icon: "dial.medium.fill", tint: tint) {
                     Picker("OCR Accuracy", selection: $settings.ocrAccuracy) {
                         ForEach(ocrAccuracyOptions, id: \.0) { value, label in
                             Text(label).tag(value)
@@ -56,12 +55,10 @@ struct ImageToTextSettingsView: View {
                     }
                     .pickerStyle(.menu)
                 }
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "text.alignleft", color: .indigo)
+                SettingsRow(icon: "text.alignleft", tint: tint) {
                     Toggle("Line-aware text ordering", isOn: $settings.lineAwareOCR)
                 }
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "textformat.abc.dottedunderline", color: .pink)
+                SettingsRow(icon: "textformat.abc.dottedunderline", tint: tint) {
                     Toggle("Language correction", isOn: $settings.useLanguageCorrection)
                 }
                 Text("Language correction fixes natural-language typos but can alter code, URLs, and IDs. Leave off for technical text.")
@@ -71,6 +68,5 @@ struct ImageToTextSettingsView: View {
 
         }
         .formStyle(.grouped)
-        .padding(.top, 4)
     }
 }

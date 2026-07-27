@@ -8,14 +8,15 @@ import SwiftUI
 struct ShortcutsSettingsView: View {
     @ObservedObject var settings: SettingsManager
 
+    private let tint = Color.green
+
     var body: some View {
         // Only shortcuts that actually fire are listed — a tool switched off in
         // General has no registered hotkey, so showing its row would be a lie.
         Form {
             if settings.isEnabled(.capture) {
                 Section("Capture") {
-                    HStack(spacing: 10) {
-                        SettingsRowIcon(systemName: "viewfinder.circle.fill", color: .orange)
+                    SettingsRow(icon: "viewfinder.circle.fill", tint: tint) {
                         Text("Capture screen area")
                         Spacer()
                         ShortcutRecorderButton(shortcut: $settings.captureShortcut)
@@ -25,8 +26,7 @@ struct ShortcutsSettingsView: View {
 
             if settings.isEnabled(.typeIt) {
                 Section("Type It") {
-                    HStack(spacing: 10) {
-                        SettingsRowIcon(systemName: "keyboard.fill", color: .purple)
+                    SettingsRow(icon: "keyboard.fill", tint: tint) {
                         Text("Type It")
                         Spacer()
                         ShortcutRecorderButton(shortcut: $settings.typeItShortcut)
@@ -36,8 +36,7 @@ struct ShortcutsSettingsView: View {
 
             if settings.isEnabled(.clipboard) {
                 Section("Clipboard") {
-                    HStack(spacing: 10) {
-                        SettingsRowIcon(systemName: "doc.on.clipboard.fill", color: .teal)
+                    SettingsRow(icon: "doc.on.clipboard.fill", tint: tint) {
                         Text("Open clipboard picker")
                         Spacer()
                         ShortcutRecorderButton(shortcut: $settings.clipboardShortcut)
@@ -47,8 +46,7 @@ struct ShortcutsSettingsView: View {
 
             if settings.isEnabled(.moveMouse) {
                 Section("Mouse") {
-                    HStack(spacing: 10) {
-                        SettingsRowIcon(systemName: "cursorarrow.motionlines", color: .indigo)
+                    SettingsRow(icon: "cursorarrow.motionlines", tint: tint) {
                         Text("Start / Stop moving mouse")
                         Spacer()
                         ShortcutRecorderButton(shortcut: $settings.moveMouseShortcut)
@@ -64,6 +62,5 @@ struct ShortcutsSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.top, 4)
     }
 }

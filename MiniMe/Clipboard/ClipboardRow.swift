@@ -36,8 +36,18 @@ enum ClipboardIconResolver {
         if months < 12 { return "\(months)mo" }
         return "\(months / 12)y"
     }
+
+    static func symbol(for content: ClipboardContent) -> String {
+        switch content {
+        case .text:  return "text.alignleft"
+        case .image: return "photo"
+        case .files: return "doc"
+        }
+    }
 }
 
+/// A deliberately minimal list row: type icon, single-line title, age, and the
+/// ⌘1–9 badge at the trailing edge. Everything richer lives in the detail pane.
 struct ClipboardRow: View {
     let entry: ClipboardEntry
     let store: ClipboardStore
@@ -45,82 +55,54 @@ struct ClipboardRow: View {
     let isSelected: Bool
     let onSelect: () -> Void
     let onDelete: () -> Void
+    let onHoverChange: (Bool) -> Void
 
     @State private var isHovered = false
-
-    /// File entries whose files have since moved or been deleted.
-    private var isUnavailable: Bool {
-        if case .files(let paths) = entry.content {
-            return !paths.allSatisfy { FileManager.default.fileExists(atPath: $0) }
-        }
-        return false
-    }
 
     private var thumbnail: NSImage? {
         guard let name = entry.thumbnailFileName else { return nil }
         return NSImage(contentsOf: store.blobURL(named: name))
     }
 
-    private var fallbackSymbol: String {
-        switch entry.content {
-        case .text:  return "text.alignleft"
-        case .image: return "photo"
-        case .files: return "doc"
-        }
-    }
-
-    private var secondLine: String? {
-        guard case .text(let string) = entry.content else { return nil }
-        let rest = string.components(separatedBy: .newlines).dropFirst()
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
-        return rest.isEmpty ? nil : rest
-    }
-
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            shortcutBadge
+        HStack(spacing: 9) {
+            leadingIcon
 
-            preview
+            Text(entry.title)
+                .font(.system(size: 12.5, weight: isSelected ? .medium : .regular))
+                .lineLimit(1)
+                .truncationMode(.tail)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(entry.title)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(1)
+            Spacer(minLength: 6)
 
-                if let secondLine {
-                    Text(secondLine)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                if isUnavailable {
-                    Text("File no longer available")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.orange)
-                }
-
-                footer
+            if entry.hasMissingFiles {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.orange.opacity(0.8))
             }
 
-            Spacer(minLength: 0)
+            Text(ClipboardIconResolver.relativeTime(from: entry.timestamp))
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+
+            shortcutBadge
         }
-        .opacity(isUnavailable ? 0.5 : 1)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .opacity(entry.hasMissingFiles ? 0.55 : 1)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
         .background {
             if isSelected {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.25))
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.22))
             } else if isHovered {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .fill(.ultraThinMaterial)
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 8))
+        .contentShape(RoundedRectangle(cornerRadius: 7))
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
+            onHoverChange(hovering)
         }
         .onTapGesture(perform: onSelect)
         .contextMenu {
@@ -135,57 +117,31 @@ struct ClipboardRow: View {
     }
 
     @ViewBuilder
-    private var shortcutBadge: some View {
-        if let shortcutIndex {
-            Text("⌘\(shortcutIndex)")
-                .font(.system(size: 10, weight: .semibold).monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 24, alignment: .leading)
-                .padding(.top, 2)
+    private var leadingIcon: some View {
+        if let thumbnail {
+            Image(nsImage: thumbnail)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 24, height: 24)
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
         } else {
-            Color.clear.frame(width: 24, height: 1)
+            Image(systemName: ClipboardIconResolver.symbol(for: entry.content))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
         }
     }
 
     @ViewBuilder
-    private var preview: some View {
-        switch entry.content {
-        case .text:
-            EmptyView()
-        case .image, .files:
-            Group {
-                if let thumbnail {
-                    Image(nsImage: thumbnail)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                } else {
-                    Image(systemName: fallbackSymbol)
-                        .font(.system(size: 18, weight: .light))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 34, height: 34)
-            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+    private var shortcutBadge: some View {
+        if let shortcutIndex {
+            Text("⌘\(shortcutIndex)")
+                .font(.system(size: 9.5, weight: .semibold).monospacedDigit())
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
         }
-    }
-
-    private var footer: some View {
-        HStack(spacing: 4) {
-            if let icon = ClipboardIconResolver.appIcon(
-                bundleID: entry.sourceAppBundleID,
-                name: entry.sourceAppName
-            ) {
-                Image(nsImage: icon)
-                    .resizable()
-                    .frame(width: 11, height: 11)
-            }
-            if let name = entry.sourceAppName {
-                Text(name)
-            }
-            Text("·")
-            Text(ClipboardIconResolver.relativeTime(from: entry.timestamp))
-        }
-        .font(.system(size: 10))
-        .foregroundStyle(.tertiary)
     }
 }

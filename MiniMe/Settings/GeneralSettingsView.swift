@@ -9,6 +9,8 @@ struct GeneralSettingsView: View {
     @ObservedObject var settings: SettingsManager
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
 
+    private let tint = Color.blue
+
     /// With the icon hidden, a hotkey is the only way back in — so name one
     /// that actually works. Capture is the natural suggestion, but it can be
     /// switched off, and every hotkey tool can be off at once.
@@ -29,12 +31,10 @@ struct GeneralSettingsView: View {
     var body: some View {
         Form {
             Section("App") {
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "arrow.up.circle.fill", color: .blue)
+                SettingsRow(icon: "arrow.up.circle.fill", tint: tint) {
                     Toggle("Launch at login", isOn: $settings.launchAtLogin)
                 }
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "menubar.rectangle", color: .blue)
+                SettingsRow(icon: "menubar.rectangle", tint: tint) {
                     VStack(alignment: .leading, spacing: 2) {
                         Toggle("Show menu bar icon", isOn: $showMenuBarIcon)
                         if !showMenuBarIcon {
@@ -48,8 +48,7 @@ struct GeneralSettingsView: View {
 
             Section("Tools") {
                 ForEach(Tool.allCases) { tool in
-                    HStack(spacing: 10) {
-                        SettingsRowIcon(systemName: tool.icon, color: .blue)
+                    SettingsRow(icon: tool.icon, tint: tint) {
                         Toggle(tool.title, isOn: Binding(
                             get: { settings.isEnabled(tool) },
                             set: { settings.setEnabled(tool, $0) }
@@ -71,6 +70,5 @@ struct GeneralSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.top, 4)
     }
 }

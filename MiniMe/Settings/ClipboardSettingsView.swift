@@ -11,13 +11,14 @@ struct ClipboardSettingsView: View {
 
     @State private var showingClearConfirmation = false
 
+    private let tint = Color.teal
+
     private static let limitOptions = [50, 100, 200, 500]
 
     var body: some View {
         Form {
             Section("History") {
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "tray.full.fill", color: .teal)
+                SettingsRow(icon: "tray.full.fill", tint: tint) {
                     Text("Keep at most")
                     Spacer()
                     Picker("", selection: $settings.clipboardMaxEntries) {
@@ -31,8 +32,7 @@ struct ClipboardSettingsView: View {
             }
 
             Section("Behavior") {
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "arrow.down.doc.fill", color: .indigo)
+                SettingsRow(icon: "arrow.down.doc.fill", tint: tint) {
                     Text("On selecting an item")
                     Spacer()
                     Picker("", selection: $settings.clipboardPickBehavior) {
@@ -44,8 +44,7 @@ struct ClipboardSettingsView: View {
                     .frame(width: 170)
                 }
 
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "command.square.fill", color: .indigo)
+                SettingsRow(icon: "command.square.fill", tint: tint) {
                     Text("Open clipboard picker")
                     Spacer()
                     ShortcutRecorderButton(shortcut: $settings.clipboardShortcut)
@@ -53,13 +52,11 @@ struct ClipboardSettingsView: View {
             }
 
             Section("Capture") {
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "photo.fill", color: .orange)
+                SettingsRow(icon: "photo.fill", tint: tint) {
                     Toggle("Capture images and files", isOn: $settings.clipboardCaptureImagesAndFiles)
                 }
 
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "lock.fill", color: .orange)
+                SettingsRow(icon: "lock.fill", tint: tint) {
                     Toggle("Ignore password-manager clipboard", isOn: $settings.clipboardIgnoreConcealed)
                 }
 
@@ -85,6 +82,5 @@ struct ClipboardSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.top, 4)
     }
 }

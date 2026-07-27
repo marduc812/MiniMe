@@ -262,7 +262,7 @@ class SettingsManager: ObservableObject {
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Settings"
         window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 680, height: 460))
+        window.setContentSize(NSSize(width: 760, height: 470))
         window.center()
         window.isReleasedWhenClosed = false
 

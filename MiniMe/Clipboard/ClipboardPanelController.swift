@@ -8,7 +8,7 @@ import SwiftUI
 @MainActor
 final class ClipboardPanelController: ObservableObject {
 
-    static let panelSize = CGSize(width: 460, height: 520)
+    static let panelSize = CGSize(width: 720, height: 500)
 
     private var panel: KeyablePanel?
     private var clickOutsideMonitor: Any?

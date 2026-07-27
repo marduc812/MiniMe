@@ -9,6 +9,8 @@ struct SchedulerSettingsView: View {
     @ObservedObject var settings: SettingsManager
     @ObservedObject var scheduler = ScheduledActionManager.shared
 
+    private let tint = Color.pink
+
     private var intervalSeconds: TimeInterval {
         let unit = ScheduleUnit(rawValue: settings.scheduledIntervalUnit) ?? .hours
         return Double(settings.scheduledIntervalValue) * unit.multiplier
@@ -17,8 +19,7 @@ struct SchedulerSettingsView: View {
     var body: some View {
         Form {
             Section("Timing") {
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "timer", color: .pink)
+                SettingsRow(icon: "timer", tint: tint) {
                     Text("Run after")
                     Spacer()
                     Text("\(settings.scheduledIntervalValue)")
@@ -36,16 +37,14 @@ struct SchedulerSettingsView: View {
                 }
                 .disabled(scheduler.isArmed)
 
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "repeat", color: .pink)
+                SettingsRow(icon: "repeat", tint: tint) {
                     Toggle("Repeat on this interval", isOn: $settings.scheduledRepeat)
                 }
                 .disabled(scheduler.isArmed)
             }
 
             Section("Action") {
-                HStack(alignment: .top, spacing: 10) {
-                    SettingsRowIcon(systemName: "text.cursor", color: .purple)
+                SettingsRow(icon: "text.cursor", tint: tint, alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Text to type")
                         TextField("Leave empty to type nothing", text: $settings.scheduledText, axis: .vertical)
@@ -55,8 +54,7 @@ struct SchedulerSettingsView: View {
                 }
                 .disabled(scheduler.isArmed)
 
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "return", color: .purple)
+                SettingsRow(icon: "return", tint: tint) {
                     Toggle("Then press a key", isOn: $settings.scheduledComboEnabled)
                     Spacer()
                     ShortcutRecorderButton(shortcut: $settings.scheduledCombo, requiresModifier: false)
@@ -68,17 +66,15 @@ struct SchedulerSettingsView: View {
 
             Section {
                 if scheduler.isArmed {
-                    HStack(spacing: 10) {
-                        SettingsRowIcon(systemName: "clock.badge.checkmark", color: .green)
+                    SettingsRow(icon: "clock.badge.checkmark", tint: .green) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Armed")
                                 .fontWeight(.medium)
                             if let fire = scheduler.nextFireDate {
-                                Text("Next in ")
+                                let countdown = Text(timerInterval: Date()...fire, countsDown: true)
+                                    .monospacedDigit()
+                                Text("Next in \(countdown)")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                + Text(timerInterval: Date()...fire, countsDown: true)
-                                    .font(.caption.monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -90,8 +86,7 @@ struct SchedulerSettingsView: View {
                         }
                     }
                 } else {
-                    HStack(spacing: 10) {
-                        SettingsRowIcon(systemName: "play.fill", color: .green)
+                    SettingsRow(icon: "play.fill", tint: .green) {
                         Text("Start the schedule")
                         Spacer()
                         Button {
@@ -116,6 +111,5 @@ struct SchedulerSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.top, 4)
     }
 }

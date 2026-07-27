@@ -5,17 +5,18 @@
 
 import SwiftUI
 
-/// One entry in the Settings tab bar.
+/// One entry in the Settings sidebar.
 ///
-/// Tabs are described as data rather than a hardcoded run of buttons because a
-/// tab can now disappear: `requires` names the tool that must be switched on
-/// for the tab to show. Selection is tracked by `id` rather than an index,
-/// which would shift as tabs come and go.
+/// Tabs are described as data rather than a hardcoded run of rows because a
+/// tab can be switched off: `requires` names the tool that must be enabled
+/// for the tab to be selectable. Disabled tabs stay visible but grayed out,
+/// so the user can see the tool exists. Selection is tracked by `id` rather
+/// than an index, which would shift if tabs were ever reordered.
 private struct SettingsTab: Identifiable {
     let id: String
     let title: String
     let icon: String
-    let gradient: LinearGradient
+    let tint: Color
     /// `nil` means the tab is always available.
     var requires: Tool? = nil
 }
@@ -28,96 +29,100 @@ struct SettingsView: View {
     @State private var selectedTab = "general"
 
     private static let allTabs: [SettingsTab] = [
-        SettingsTab(
-            id: "general",
-            title: "General",
-            icon: "gearshape.fill",
-            gradient: LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
-        ),
-        SettingsTab(
-            id: "capture",
-            title: "Capture",
-            icon: "text.viewfinder",
-            gradient: LinearGradient(colors: [.orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing),
-            requires: .capture
-        ),
-        SettingsTab(
-            id: "typeIt",
-            title: "Type It",
-            icon: "keyboard.fill",
-            gradient: LinearGradient(colors: [.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
-            requires: .typeIt
-        ),
-        SettingsTab(
-            id: "scheduler",
-            title: "Scheduler",
-            icon: "alarm.fill",
-            gradient: LinearGradient(colors: [.pink, .red], startPoint: .topLeading, endPoint: .bottomTrailing)
-        ),
-        SettingsTab(
-            id: "mouse",
-            title: "Mouse",
-            icon: "cursorarrow.motionlines",
-            gradient: LinearGradient(colors: [.indigo, .blue], startPoint: .topLeading, endPoint: .bottomTrailing),
-            requires: .moveMouse
-        ),
-        SettingsTab(
-            id: "clipboard",
-            title: "Clipboard",
-            icon: "doc.on.clipboard.fill",
-            gradient: LinearGradient(colors: [.teal, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
-            requires: .clipboard
-        ),
-        SettingsTab(
-            id: "shortcuts",
-            title: "Shortcuts",
-            icon: "command.square.fill",
-            gradient: LinearGradient(colors: [.teal, .green], startPoint: .topLeading, endPoint: .bottomTrailing)
-        ),
-        SettingsTab(
-            id: "about",
-            title: "About",
-            icon: "info.circle.fill",
-            gradient: LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
-        ),
+        SettingsTab(id: "general", title: "General", icon: "gearshape.fill", tint: .blue),
+        SettingsTab(id: "capture", title: "Capture", icon: "text.viewfinder", tint: .orange, requires: .capture),
+        SettingsTab(id: "typeIt", title: "Type It", icon: "keyboard.fill", tint: .purple, requires: .typeIt),
+        SettingsTab(id: "scheduler", title: "Scheduler", icon: "alarm.fill", tint: .pink),
+        SettingsTab(id: "mouse", title: "Mouse", icon: "cursorarrow.motionlines", tint: .indigo, requires: .moveMouse),
+        SettingsTab(id: "clipboard", title: "Clipboard", icon: "doc.on.clipboard.fill", tint: .teal, requires: .clipboard),
+        SettingsTab(id: "shortcuts", title: "Shortcuts", icon: "command.square.fill", tint: .green),
+        SettingsTab(id: "about", title: "About", icon: "info.circle.fill", tint: .gray),
     ]
 
-    private var visibleTabs: [SettingsTab] {
-        Self.allTabs.filter { tab in
-            guard let required = tab.requires else { return true }
-            return settings.isEnabled(required)
-        }
+    private func isEnabled(_ tab: SettingsTab) -> Bool {
+        guard let required = tab.requires else { return true }
+        return settings.isEnabled(required)
+    }
+
+    private var currentTab: SettingsTab {
+        Self.allTabs.first { $0.id == selectedTab } ?? Self.allTabs[0]
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Tab bar
-            HStack(spacing: 2) {
-                Spacer()
-
-                ForEach(visibleTabs) { tab in
-                    SettingsTabButton(
-                        title: tab.title,
-                        icon: tab.icon,
-                        gradient: tab.gradient,
-                        isSelected: selectedTab == tab.id,
-                        badge: tab.id == "about" && updateManager.updateAvailable
-                    ) {
-                        withAnimation(.easeInOut(duration: 0.15)) { selectedTab = tab.id }
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.top, 16)
-            .padding(.bottom, 12)
-
+        HStack(spacing: 0) {
+            sidebar
             Divider()
-                .opacity(0.5)
+            detail
+        }
+        .frame(width: 760, height: 470)
+        .onChange(of: settings.enabledTools) { _, _ in
+            // The tab being shown may have just been switched off.
+            if !isEnabled(currentTab) {
+                selectedTab = "general"
+            }
+        }
+    }
 
-            // Content
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Self.allTabs) { tab in
+                sidebarRow(tab)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(width: 200)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background {
+            VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
+        }
+    }
+
+    private func sidebarRow(_ tab: SettingsTab) -> some View {
+        let enabled = isEnabled(tab)
+        let isSelected = tab.id == selectedTab
+
+        return Button {
+            selectedTab = tab.id
+        } label: {
+            HStack(spacing: 8) {
+                SettingsRowIcon(systemName: tab.icon, color: tab.tint, size: 22)
+                Text(tab.title)
+                    .font(.system(size: 13))
+                Spacer(minLength: 0)
+                if tab.id == "about" && updateManager.updateAvailable {
+                    Circle()
+                        .fill(.red)
+                        .frame(width: 7, height: 7)
+                        .accessibilityLabel("Update available")
+                }
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isSelected ? Color.white : Color.primary)
+        .background {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color.accentColor)
+            }
+        }
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.4)
+        .accessibilityLabel(enabled ? tab.title : "\(tab.title), disabled")
+    }
+
+    private var detail: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(currentTab.title)
+                .font(.title2.weight(.semibold))
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
+
             Group {
-                switch selectedTab {
+                switch currentTab.id {
                 case "capture":
                     ImageToTextSettingsView(settings: settings)
                 case "typeIt":
@@ -137,21 +142,8 @@ struct SettingsView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, 8)
-            .padding(.bottom, 8)
         }
-        .frame(width: 680, height: 460)
-        .background {
-            ZStack {
-                VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
-                Color.primary.opacity(0.02)
-            }
-        }
-        .onChange(of: settings.enabledTools) { _, _ in
-            // The tab being shown may have just been switched off.
-            if !visibleTabs.contains(where: { $0.id == selectedTab }) {
-                selectedTab = "general"
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 }
