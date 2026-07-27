@@ -94,4 +94,12 @@ struct ShortcutSet: Equatable, Sendable {
     var typeIt: CustomShortcut
     var moveMouse: CustomShortcut
     var clipboard: CustomShortcut
+
+    /// Which tools are switched on. A shortcut whose tool is absent is not
+    /// registered. Including this here means flipping a tool's switch changes
+    /// the set, which fires the existing `.onChange(of:shortcutSet)` observer
+    /// in `MiniMeApp` and re-registers hotkeys — no separate wiring needed.
+    var enabledTools: Set<Tool> = Set(Tool.allCases)
+
+    func isEnabled(_ tool: Tool) -> Bool { enabledTools.contains(tool) }
 }

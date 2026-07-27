@@ -41,8 +41,7 @@ class SettingsManager: ObservableObject {
     @AppStorage("typeItCountdownDuration") var typeItCountdownDuration = 5
     @AppStorage("typeItCountdownSound") var typeItCountdownSound = true
 
-    // Clipboard manager
-    @AppStorage("clipboardHistoryEnabled") var clipboardHistoryEnabled = true
+    // Clipboard manager (on/off lives in `Tool.clipboard`, not here)
     @AppStorage("clipboardPickBehavior") var clipboardPickBehavior = PasteService.PickBehavior.copyAndPaste.rawValue
     @AppStorage("clipboardCaptureImagesAndFiles") var clipboardCaptureImagesAndFiles = true
     @AppStorage("clipboardIgnoreConcealed") var clipboardIgnoreConcealed = true
@@ -97,13 +96,40 @@ class SettingsManager: ObservableObject {
     private var sleepAssertionID: IOPMAssertionID = .zero
     private var sleepTimer: Timer?
 
+    /// Which tools are switched on. See `Tool`.
+    @Published private(set) var enabledTools: Set<Tool>
+
     var shortcutSet: ShortcutSet {
         ShortcutSet(
             capture: captureShortcut,
             typeIt: typeItShortcut,
             moveMouse: moveMouseShortcut,
-            clipboard: clipboardShortcut
+            clipboard: clipboardShortcut,
+            enabledTools: enabledTools
         )
+    }
+
+    func isEnabled(_ tool: Tool) -> Bool { enabledTools.contains(tool) }
+
+    /// Switches a tool on or off and releases anything this object owns on its
+    /// behalf. Teardown for objects owned by `MiniMeApp` — the clipboard
+    /// monitor and panel, the capture overlay, the mouse mover — hangs off the
+    /// `enabledTools` observer in `MiniMeApp`.
+    func setEnabled(_ tool: Tool, _ enabled: Bool) {
+        guard enabledTools.contains(tool) != enabled else { return }
+
+        Tool.setEnabled(enabled, for: tool, in: defaults)
+        if enabled {
+            enabledTools.insert(tool)
+        } else {
+            enabledTools.remove(tool)
+        }
+
+        // Prevent Sleep holds an IOKit assertion. Dropping the UI that releases
+        // it without releasing it would keep the Mac awake with no way to stop.
+        if tool == .preventSleep && !enabled {
+            disablePreventSleep()
+        }
     }
 
     func enablePreventSleep(_ duration: SleepDuration) {
@@ -139,36 +165,46 @@ class SettingsManager: ObservableObject {
 
     private var settingsWindow: NSWindow?
 
-    init() {
-        if let data = UserDefaults.standard.data(forKey: "captureShortcut"),
+    /// Injectable so tests can run against a scratch domain instead of the
+    /// user's real preferences. `@AppStorage` properties above always use
+    /// `.standard`; this store backs the shortcuts and tool enablement.
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+
+        Tool.migrateLegacyKeys(in: defaults)
+        enabledTools = Tool.enabledSet(from: defaults)
+
+        if let data = defaults.data(forKey: "captureShortcut"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             captureShortcut = shortcut
         } else {
             captureShortcut = .defaultCapture
         }
 
-        if let data = UserDefaults.standard.data(forKey: "typeItShortcut"),
+        if let data = defaults.data(forKey: "typeItShortcut"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             typeItShortcut = shortcut
         } else {
             typeItShortcut = .defaultTypeIt
         }
 
-        if let data = UserDefaults.standard.data(forKey: "moveMouseShortcut"),
+        if let data = defaults.data(forKey: "moveMouseShortcut"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             moveMouseShortcut = shortcut
         } else {
             moveMouseShortcut = .defaultMoveMouse
         }
 
-        if let data = UserDefaults.standard.data(forKey: "clipboardShortcut"),
+        if let data = defaults.data(forKey: "clipboardShortcut"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             clipboardShortcut = shortcut
         } else {
             clipboardShortcut = .defaultClipboard
         }
 
-        if let data = UserDefaults.standard.data(forKey: "scheduledCombo"),
+        if let data = defaults.data(forKey: "scheduledCombo"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             scheduledCombo = shortcut
         } else {
@@ -178,22 +214,22 @@ class SettingsManager: ObservableObject {
 
     private func saveScheduledCombo() {
         if let data = try? JSONEncoder().encode(scheduledCombo) {
-            UserDefaults.standard.set(data, forKey: "scheduledCombo")
+            defaults.set(data, forKey: "scheduledCombo")
         }
     }
 
     private func saveShortcuts() {
         if let data = try? JSONEncoder().encode(captureShortcut) {
-            UserDefaults.standard.set(data, forKey: "captureShortcut")
+            defaults.set(data, forKey: "captureShortcut")
         }
         if let data = try? JSONEncoder().encode(typeItShortcut) {
-            UserDefaults.standard.set(data, forKey: "typeItShortcut")
+            defaults.set(data, forKey: "typeItShortcut")
         }
         if let data = try? JSONEncoder().encode(moveMouseShortcut) {
-            UserDefaults.standard.set(data, forKey: "moveMouseShortcut")
+            defaults.set(data, forKey: "moveMouseShortcut")
         }
         if let data = try? JSONEncoder().encode(clipboardShortcut) {
-            UserDefaults.standard.set(data, forKey: "clipboardShortcut")
+            defaults.set(data, forKey: "clipboardShortcut")
         }
     }
 

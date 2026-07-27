@@ -35,6 +35,12 @@ class ScreenCaptureManager: ObservableObject {
         }
     }
 
+    /// Dismisses the selection overlay if one is up. Called when the Capture
+    /// tool is switched off mid-selection.
+    func cancelAreaSelection() {
+        closeAllWindows()
+    }
+
     func startAreaSelection() {
         closeAllWindows()
 

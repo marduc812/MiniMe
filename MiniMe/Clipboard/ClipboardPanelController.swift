@@ -41,7 +41,7 @@ final class ClipboardPanelController: ObservableObject {
 
         let view = ClipboardPickerView(
             store: store,
-            isEnabled: settings.clipboardHistoryEnabled,
+            isEnabled: settings.isEnabled(.clipboard),
             onSelect: { [weak self] entry in
                 self?.select(entry, store: store, settings: settings, monitor: monitor)
             },

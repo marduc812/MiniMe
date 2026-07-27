@@ -148,10 +148,19 @@ class HotkeyManager: ObservableObject {
 
         HotkeyManager.sharedInstance = self
 
-        register(shortcuts.capture,   id: Self.captureHotkeyID,   label: "capture")
-        register(shortcuts.typeIt,    id: Self.typeItHotkeyID,    label: "type it")
-        register(shortcuts.moveMouse, id: Self.moveMouseHotkeyID, label: "move mouse")
-        register(shortcuts.clipboard, id: Self.clipboardHotkeyID, label: "clipboard")
+        // A tool switched off in Settings gets no hotkey.
+        if shortcuts.isEnabled(.capture) {
+            register(shortcuts.capture, id: Self.captureHotkeyID, label: "capture")
+        }
+        if shortcuts.isEnabled(.typeIt) {
+            register(shortcuts.typeIt, id: Self.typeItHotkeyID, label: "type it")
+        }
+        if shortcuts.isEnabled(.moveMouse) {
+            register(shortcuts.moveMouse, id: Self.moveMouseHotkeyID, label: "move mouse")
+        }
+        if shortcuts.isEnabled(.clipboard) {
+            register(shortcuts.clipboard, id: Self.clipboardHotkeyID, label: "clipboard")
+        }
     }
 
     private func register(_ shortcut: CustomShortcut, id: EventHotKeyID, label: String) {

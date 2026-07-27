@@ -187,11 +187,19 @@ handles the objects `MiniMeApp` owns.
 
 | Tool | Teardown | Runs in |
 |---|---|---|
-| Capture | Cancel any active selection overlay | App layer (`screenCapture`) |
+| Capture | `screenCapture.cancelAreaSelection()` | App layer |
 | Type It | None — no persistent state | — |
-| Clipboard | `monitor.stop()` and `panel.close()` | App layer (`clipboardMonitor`, `clipboardPanel`) |
-| Move Mouse | `MouseMoverManager.shared.disarm()` | `SettingsManager` (singleton) |
+| Clipboard | `monitor.stop()` and `panel.close()` | App layer |
+| Move Mouse | `MouseMoverManager.shared.disarm()` | App layer |
 | Prevent Sleep | `disablePreventSleep()` — releases the IOKit assertion | `SettingsManager` (owns the assertion) |
+
+Move Mouse moved to the app layer during implementation. Reaching
+`MouseMoverManager.shared` from `SettingsManager` would have made the teardown
+testable only by arming the real mover, which needs Accessibility permission
+and schedules an actual cursor move — a test that either moves the user's
+mouse or passes vacuously when permission is denied. Keeping all cross-object
+teardown in one place leaves `SettingsManager` owning only the assertion it
+actually holds, which is testable against real IOKit.
 
 `ClipboardMonitor`, `ClipboardPanelController`, and `ScreenCaptureManager` are
 owned by `MiniMeApp`, not by `SettingsManager`. Their teardown hangs off a
@@ -240,9 +248,27 @@ existing suites:
   re-enabling Clipboard restarts the monitor and re-enabling the others does
   not auto-arm.
 
-View-level filtering (menu items, tab list, Shortcuts sections) is covered by
-deriving all three from `enabledTools`; the existing `SettingsUITests` continue
-to exercise the panel.
+View-level filtering can't be reached from unit tests, so `ToolToggleUITests`
+drives the real app for it. MiniMe is an accessory app with no ordinary window,
+so `⌘,` does nothing until the status item menu is open — the tests click the
+status item, then `Settings...`, the way a user does. They cover: the Tools
+section rendering all five switches; switching Clipboard off removing it from
+the menu bar menu and switching it back on restoring it; a disabled tool's
+Settings tab disappearing; and a disabled tool's Shortcuts row disappearing.
+
+Each Tools toggle carries an `accessibilityIdentifier` of
+`tool-toggle-<rawValue>`, because SwiftUI renders a `Form` toggle as a `Switch`
+whose label is a sibling `StaticText` — there is no title on the control to
+match against.
+
+These tests run against the user's real preferences (the app uses
+`UserDefaults.standard`), so each one restores what it flipped.
+
+Note: the pre-existing `SettingsUITests` are written as
+`if element.exists { XCTAssert(element.exists) }` behind a
+`guard ... else { return }` on a Settings window that never opens, so they pass
+unconditionally without asserting anything. They were left as-is — fixing them
+is unrelated to this change — but they should not be read as coverage.
 
 ## Files touched
 
@@ -257,4 +283,7 @@ to exercise the panel.
 | `MiniMe/Settings/SettingsView.swift` | Data-driven tab list keyed by id |
 | `MiniMe/Settings/ClipboardSettingsView.swift` | Remove the enable row |
 | `MiniMe/Settings/ShortcutsSettingsView.swift` | Filter sections |
-| `MiniMeTests/` | New tests per §8 |
+| `MiniMe/Services/ScreenCaptureManager.swift` | `cancelAreaSelection()` entry point |
+| `MiniMe/Clipboard/ClipboardPanelController.swift` | Read enablement from `Tool.clipboard` |
+| `MiniMeTests/` | `ToolTests`, `ShortcutSetTests`, `SettingsManagerToolTests` |
+| `MiniMeUITests/ToolToggleUITests.swift` | New — drives the real app per §8 |

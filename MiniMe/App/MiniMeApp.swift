@@ -88,8 +88,8 @@ struct MiniMeApp: App {
         .onChange(of: settingsManager.shortcutSet) { _, newValue in
             hotkeyManager.updateShortcuts(newValue)
         }
-        .onChange(of: settingsManager.clipboardHistoryEnabled) { _, enabled in
-            enabled ? clipboardMonitor?.start() : clipboardMonitor?.stop()
+        .onChange(of: settingsManager.enabledTools) { _, enabled in
+            applyToolState(enabled)
         }
         .onChange(of: settingsManager.clipboardCaptureImagesAndFiles) { _, newValue in
             clipboardMonitor?.captureImagesAndFiles = newValue
@@ -184,6 +184,28 @@ struct MiniMeApp: App {
         }
     }
 
+    /// Tears down the objects this scene owns when their tool is switched off,
+    /// and restarts the clipboard monitor when it is switched back on.
+    ///
+    /// `SettingsManager` handles Prevent Sleep itself, since it owns the IOKit
+    /// assertion. Everything below belongs to this scene, so it can't.
+    private func applyToolState(_ enabled: Set<Tool>) {
+        if enabled.contains(.clipboard) {
+            clipboardMonitor?.start()
+        } else {
+            clipboardMonitor?.stop()
+            clipboardPanel.close()
+        }
+
+        if !enabled.contains(.moveMouse) {
+            MouseMoverManager.shared.disarm()
+        }
+
+        if !enabled.contains(.capture) {
+            screenCapture.cancelAreaSelection()
+        }
+    }
+
     private func startClipboardMonitor() {
         clipboardStore.maxEntries = settingsManager.clipboardMaxEntries
 
@@ -192,7 +214,7 @@ struct MiniMeApp: App {
         monitor.ignoreConcealed = settingsManager.clipboardIgnoreConcealed
         clipboardMonitor = monitor
 
-        if settingsManager.clipboardHistoryEnabled {
+        if settingsManager.isEnabled(.clipboard) {
             monitor.start()
         }
     }
@@ -232,17 +254,25 @@ struct MiniMeApp: App {
 
         let menu = NSMenu()
 
-        let captureItem = NSMenuItem(title: "Capture", action: #selector(AppDelegate.menuCapture), keyEquivalent: "")
-        captureItem.image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: nil)
-        captureItem.target = appDelegate
-        menu.addItem(captureItem)
+        // Mirrors the filtering in `MenuContentView` — a tool switched off in
+        // Settings must not surface through this fallback either.
+        if settingsManager.isEnabled(.capture) {
+            let captureItem = NSMenuItem(title: "Capture", action: #selector(AppDelegate.menuCapture), keyEquivalent: "")
+            captureItem.image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: nil)
+            captureItem.target = appDelegate
+            menu.addItem(captureItem)
+        }
 
-        let clipboardItem = NSMenuItem(title: "Clipboard", action: #selector(AppDelegate.menuClipboard), keyEquivalent: "")
-        clipboardItem.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
-        clipboardItem.target = appDelegate
-        menu.addItem(clipboardItem)
+        if settingsManager.isEnabled(.clipboard) {
+            let clipboardItem = NSMenuItem(title: "Clipboard", action: #selector(AppDelegate.menuClipboard), keyEquivalent: "")
+            clipboardItem.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
+            clipboardItem.target = appDelegate
+            menu.addItem(clipboardItem)
+        }
 
-        menu.addItem(.separator())
+        if !menu.items.isEmpty {
+            menu.addItem(.separator())
+        }
 
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(AppDelegate.menuSettings), keyEquivalent: "")
         settingsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
@@ -293,76 +323,103 @@ struct MenuContentView: View {
     let showClipboard: () -> Void
     @ObservedObject var mouseMover = MouseMoverManager.shared
 
+    /// The capture/type/clipboard group and the mouse/sleep group are each
+    /// hidden entirely when every tool in them is switched off, so a disabled
+    /// tool never leaves a stray or doubled separator behind.
+    private var hasActionTools: Bool {
+        settingsManager.isEnabled(.capture)
+            || settingsManager.isEnabled(.typeIt)
+            || settingsManager.isEnabled(.clipboard)
+    }
+
+    private var hasUtilityTools: Bool {
+        settingsManager.isEnabled(.moveMouse) || settingsManager.isEnabled(.preventSleep)
+    }
+
     var body: some View {
         Group {
-            Button {
-                DispatchQueue.main.async {
-                    settingsManager.closeSettingsWindow()
-                    screenCapture.startAreaSelection()
+            if settingsManager.isEnabled(.capture) {
+                Button {
+                    DispatchQueue.main.async {
+                        settingsManager.closeSettingsWindow()
+                        screenCapture.startAreaSelection()
+                    }
+                } label: {
+                    Label("Capture", systemImage: "text.viewfinder")
                 }
-            } label: {
-                Label("Capture", systemImage: "text.viewfinder")
+                .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.captureShortcut))
             }
-            .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.captureShortcut))
 
-            Button {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    TypingService.shared.typeFromSelection()
+            if settingsManager.isEnabled(.typeIt) {
+                Button {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        TypingService.shared.typeFromSelection()
+                    }
+                } label: {
+                    Label("Type It", systemImage: "keyboard")
                 }
-            } label: {
-                Label("Type It", systemImage: "keyboard")
+                .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.typeItShortcut))
             }
-            .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.typeItShortcut))
 
-            Button {
-                DispatchQueue.main.async { showClipboard() }
-            } label: {
-                Label("Clipboard", systemImage: "doc.on.clipboard")
-            }
-            .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.clipboardShortcut))
-
-            Divider()
-
-            Button {
-                MouseMoverManager.shared.toggle()
-            } label: {
-                if mouseMover.isArmed {
-                    Label("Stop Moving Mouse", systemImage: "cursorarrow.motionlines")
-                } else {
-                    Label("Move Mouse", systemImage: "cursorarrow.motionlines")
+            if settingsManager.isEnabled(.clipboard) {
+                Button {
+                    DispatchQueue.main.async { showClipboard() }
+                } label: {
+                    Label("Clipboard", systemImage: "doc.on.clipboard")
                 }
+                .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.clipboardShortcut))
             }
-            .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.moveMouseShortcut))
 
-            Menu {
-                ForEach(SleepDuration.allCases) { duration in
-                    Button {
-                        settingsManager.enablePreventSleep(duration)
-                    } label: {
-                        if settingsManager.activeSleepDuration == duration {
-                            Label(duration.rawValue, systemImage: "checkmark")
-                        } else {
-                            Text(duration.rawValue)
-                        }
+            if hasActionTools && hasUtilityTools {
+                Divider()
+            }
+
+            if settingsManager.isEnabled(.moveMouse) {
+                Button {
+                    MouseMoverManager.shared.toggle()
+                } label: {
+                    if mouseMover.isArmed {
+                        Label("Stop Moving Mouse", systemImage: "cursorarrow.motionlines")
+                    } else {
+                        Label("Move Mouse", systemImage: "cursorarrow.motionlines")
                     }
                 }
-            } label: {
-                if let active = settingsManager.activeSleepDuration {
-                    Label("Prevent Sleep (\(active.rawValue))", systemImage: "moon.zzz.fill")
-                } else {
-                    Label("Prevent Sleep", systemImage: "moon.zzz")
-                }
+                .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.moveMouseShortcut))
             }
 
-            if settingsManager.activeSleepDuration != nil {
-                Button {
-                    settingsManager.disablePreventSleep()
+            if settingsManager.isEnabled(.preventSleep) {
+                Menu {
+                    ForEach(SleepDuration.allCases) { duration in
+                        Button {
+                            settingsManager.enablePreventSleep(duration)
+                        } label: {
+                            if settingsManager.activeSleepDuration == duration {
+                                Label(duration.rawValue, systemImage: "checkmark")
+                            } else {
+                                Text(duration.rawValue)
+                            }
+                        }
+                    }
                 } label: {
-                    Label("Turn Off Prevent Sleep", systemImage: "moon.fill")
+                    if let active = settingsManager.activeSleepDuration {
+                        Label("Prevent Sleep (\(active.rawValue))", systemImage: "moon.zzz.fill")
+                    } else {
+                        Label("Prevent Sleep", systemImage: "moon.zzz")
+                    }
+                }
+
+                if settingsManager.activeSleepDuration != nil {
+                    Button {
+                        settingsManager.disablePreventSleep()
+                    } label: {
+                        Label("Turn Off Prevent Sleep", systemImage: "moon.fill")
+                    }
                 }
             }
 
-            Divider()
+            if hasActionTools || hasUtilityTools {
+                Divider()
+            }
 
             Button {
                 DispatchQueue.main.async {

@@ -17,11 +17,6 @@ struct ClipboardSettingsView: View {
         Form {
             Section("History") {
                 HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "doc.on.clipboard.fill", color: .teal)
-                    Toggle("Enable clipboard history", isOn: $settings.clipboardHistoryEnabled)
-                }
-
-                HStack(spacing: 10) {
                     SettingsRowIcon(systemName: "tray.full.fill", color: .teal)
                     Text("Keep at most")
                     Spacer()
