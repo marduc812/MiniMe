@@ -6,9 +6,9 @@
 import SwiftUI
 
 enum ClipboardIconResolver {
-    /// Resolves an app icon, preferring the bundle identifier. `CaptureRow` matches
-    /// on localized name and guesses a path in /Applications, which breaks for apps
-    /// installed elsewhere; bundle ID lookup is exact.
+    /// Resolves an app icon, preferring the bundle identifier. Matching on localized
+    /// name means guessing a path in /Applications, which breaks for apps installed
+    /// elsewhere; bundle ID lookup is exact, with the name only as a fallback.
     static func appIcon(bundleID: String?, name: String?) -> NSImage? {
         if let bundleID,
            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
@@ -22,7 +22,7 @@ enum ClipboardIconResolver {
         return nil
     }
 
-    /// Same scheme as `CaptureRow.relativeTime`, kept consistent across both lists.
+    /// Compact relative age ("<1 min", "3h", "2d") for the row's trailing label.
     static func relativeTime(from date: Date) -> String {
         let seconds = Int(-date.timeIntervalSinceNow)
         if seconds < 60 { return "<1 min" }

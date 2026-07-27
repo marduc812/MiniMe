@@ -14,7 +14,6 @@ extension Notification.Name {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var onCapture: (() -> Void)?
-    var onHistory: (() -> Void)?
     var onSettings: (() -> Void)?
     var onClipboard: (() -> Void)?
 
@@ -29,7 +28,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func menuCapture() { onCapture?() }
-    @objc func menuHistory() { onHistory?() }
     @objc func menuSettings() { onSettings?() }
     @objc func menuClipboard() { onClipboard?() }
 
@@ -39,10 +37,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 struct MiniMeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var screenCapture = ScreenCaptureManager()
-    @StateObject private var historyStore = CaptureHistoryStore()
     @StateObject private var settingsManager = SettingsManager()
     @StateObject private var hotkeyManager = HotkeyManager()
-    @StateObject private var textPreviewManager = TextPreviewManager()
     @StateObject private var onboardingManager = OnboardingManager()
     @StateObject private var updateManager = UpdateManager()
     @StateObject private var clipboardStore = ClipboardStore()
@@ -62,10 +58,8 @@ struct MiniMeApp: App {
         MenuBarExtra(isInserted: $showMenuBarIcon) {
             MenuContentView(
                 screenCapture: screenCapture,
-                historyStore: historyStore,
                 settingsManager: settingsManager,
                 hotkeyManager: hotkeyManager,
-                textPreviewManager: textPreviewManager,
                 updateManager: updateManager,
                 clipboardStore: clipboardStore,
                 showClipboard: { showClipboardPicker() }
@@ -91,19 +85,6 @@ struct MiniMeApp: App {
             }
         }
         .menuBarExtraStyle(.menu)
-        .onChange(of: screenCapture.lastExtractedText) { _, newText in
-            if let text = newText {
-                // Always add to history
-                historyStore.addCapture(text: text, sourceApplication: screenCapture.lastSourceApp)
-
-                // Show preview window if auto-copy is disabled
-                let autoCopy = UserDefaults.standard.object(forKey: "autoCopyToClipboard") as? Bool ?? true
-                if !autoCopy {
-                    textPreviewManager.showPreviewWindow(text: text)
-                }
-                screenCapture.lastExtractedText = nil
-            }
-        }
         .onChange(of: settingsManager.shortcutSet) { _, newValue in
             hotkeyManager.updateShortcuts(newValue)
         }
@@ -186,22 +167,11 @@ struct MiniMeApp: App {
     private func setupAppDelegate() {
         appDelegate.onCapture = {
             self.clipboardPanel.close()
-            self.textPreviewManager.closePreviewWindow()
-            self.historyStore.closeHistoryWindow()
             self.settingsManager.closeSettingsWindow()
             self.screenCapture.startAreaSelection()
         }
-        appDelegate.onHistory = {
-            self.clipboardPanel.close()
-            self.textPreviewManager.closePreviewWindow()
-            self.settingsManager.closeSettingsWindow()
-            NSApp.activate(ignoringOtherApps: true)
-            self.historyStore.showHistoryWindow()
-        }
         appDelegate.onSettings = {
             self.clipboardPanel.close()
-            self.textPreviewManager.closePreviewWindow()
-            self.historyStore.closeHistoryWindow()
             NSApp.activate(ignoringOtherApps: true)
             self.settingsManager.showSettingsWindow(
                 hotkeyManager: self.hotkeyManager,
@@ -229,8 +199,6 @@ struct MiniMeApp: App {
 
     private func showClipboardPicker() {
         guard let clipboardMonitor else { return }
-        textPreviewManager.closePreviewWindow()
-        historyStore.closeHistoryWindow()
         settingsManager.closeSettingsWindow()
 
         clipboardPanel.toggle(
@@ -269,11 +237,6 @@ struct MiniMeApp: App {
         captureItem.target = appDelegate
         menu.addItem(captureItem)
 
-        let historyItem = NSMenuItem(title: "History", action: #selector(AppDelegate.menuHistory), keyEquivalent: "")
-        historyItem.image = NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: nil)
-        historyItem.target = appDelegate
-        menu.addItem(historyItem)
-
         let clipboardItem = NSMenuItem(title: "Clipboard", action: #selector(AppDelegate.menuClipboard), keyEquivalent: "")
         clipboardItem.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
         clipboardItem.target = appDelegate
@@ -304,16 +267,8 @@ struct MiniMeApp: App {
         hotkeyManager.updateShortcuts(settingsManager.shortcutSet)
         hotkeyManager.onCapture = {
             self.clipboardPanel.close()
-            self.textPreviewManager.closePreviewWindow()
-            self.historyStore.closeHistoryWindow()
             self.settingsManager.closeSettingsWindow()
             self.screenCapture.startAreaSelection()
-        }
-        hotkeyManager.onHistory = {
-            self.clipboardPanel.close()
-            self.textPreviewManager.closePreviewWindow()
-            self.settingsManager.closeSettingsWindow()
-            self.historyStore.showHistoryWindow()
         }
         hotkeyManager.onTypeIt = {
             TypingService.shared.typeFromSelection()
@@ -331,10 +286,8 @@ struct MiniMeApp: App {
 
 struct MenuContentView: View {
     @ObservedObject var screenCapture: ScreenCaptureManager
-    @ObservedObject var historyStore: CaptureHistoryStore
     @ObservedObject var settingsManager: SettingsManager
     @ObservedObject var hotkeyManager: HotkeyManager
-    @ObservedObject var textPreviewManager: TextPreviewManager
     @ObservedObject var updateManager: UpdateManager
     @ObservedObject var clipboardStore: ClipboardStore
     let showClipboard: () -> Void
@@ -344,8 +297,6 @@ struct MenuContentView: View {
         Group {
             Button {
                 DispatchQueue.main.async {
-                    textPreviewManager.closePreviewWindow()
-                    historyStore.closeHistoryWindow()
                     settingsManager.closeSettingsWindow()
                     screenCapture.startAreaSelection()
                 }
@@ -362,18 +313,6 @@ struct MenuContentView: View {
                 Label("Type It", systemImage: "keyboard")
             }
             .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.typeItShortcut))
-
-            Button {
-                DispatchQueue.main.async {
-                    textPreviewManager.closePreviewWindow()
-                    NSApp.activate(ignoringOtherApps: true)
-                    settingsManager.closeSettingsWindow()
-                    historyStore.showHistoryWindow()
-                }
-            } label: {
-                Label("History", systemImage: "clock.arrow.circlepath")
-            }
-            .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.historyShortcut))
 
             Button {
                 DispatchQueue.main.async { showClipboard() }
@@ -427,9 +366,7 @@ struct MenuContentView: View {
 
             Button {
                 DispatchQueue.main.async {
-                    textPreviewManager.closePreviewWindow()
                     NSApp.activate(ignoringOtherApps: true)
-                    historyStore.closeHistoryWindow()
                     settingsManager.showSettingsWindow(
                         hotkeyManager: hotkeyManager,
                         updateManager: updateManager,

@@ -9,8 +9,6 @@ import UserNotifications
 
 @MainActor
 class ScreenCaptureManager: ObservableObject {
-    @Published var lastExtractedText: String?
-    @Published var lastSourceApp: String?
     @Published var needsPermission: Bool = false
 
     private var selectionWindows: [SelectionWindow] = []
@@ -39,9 +37,6 @@ class ScreenCaptureManager: ObservableObject {
 
     func startAreaSelection() {
         closeAllWindows()
-
-        // Capture the frontmost app before showing overlay (overlay makes MiniMe frontmost)
-        lastSourceApp = NSWorkspace.shared.frontmostApplication?.localizedName
 
         // Check permission first
         Task {
@@ -169,7 +164,6 @@ class ScreenCaptureManager: ObservableObject {
         )
 
         // Read settings on main thread before dispatching
-        let autoCopyToClipboard = UserDefaults.standard.object(forKey: "autoCopyToClipboard") as? Bool ?? true
         let playSound = UserDefaults.standard.object(forKey: "playSound") as? Bool ?? true
         let recognitionLanguage = UserDefaults.standard.string(forKey: "recognitionLanguage") ?? OCROptions.automaticLanguage
         let lineAwareOCR = UserDefaults.standard.object(forKey: "lineAwareOCR") as? Bool ?? true
@@ -220,7 +214,6 @@ class ScreenCaptureManager: ObservableObject {
                 // Update UI on main thread
                 await self?.handleCaptureResult(
                     text: extractedText,
-                    autoCopy: autoCopyToClipboard,
                     playSound: playSound
                 )
 
@@ -252,28 +245,27 @@ class ScreenCaptureManager: ObservableObject {
         }
     }
 
-    private func handleCaptureResult(text: String?, autoCopy: Bool, playSound: Bool) {
+    /// Recognized text goes straight to the pasteboard. `ClipboardMonitor` sees the
+    /// write and records it, so the clipboard history is the only capture history.
+    private func handleCaptureResult(text: String?, playSound: Bool) {
         if let text = text, !text.isEmpty {
-            if autoCopy {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
-            }
-            lastExtractedText = text
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
 
             if playSound {
                 NSSound(named: .init("Funk"))?.play()
             }
 
-            showNotification(text: text, autoCopied: autoCopy)
+            showNotification(text: text)
         } else {
-            showNotification(text: nil, autoCopied: false)
+            showNotification(text: nil)
         }
     }
 
-    private func showNotification(text: String?, autoCopied: Bool) {
+    private func showNotification(text: String?) {
         let content = UNMutableNotificationContent()
         if let text = text {
-            content.title = autoCopied ? "Text Copied" : "Text Captured"
+            content.title = "Text Copied"
             let preview = text.count > 100 ? String(text.prefix(100)) + "..." : text
             content.body = preview
         } else {

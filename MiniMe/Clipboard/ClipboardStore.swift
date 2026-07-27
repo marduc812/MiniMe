@@ -8,9 +8,9 @@ import SwiftUI
 /// File-backed store for clipboard history.
 ///
 /// Metadata lives in `clipboard.json`; image blobs and cached thumbnails live in
-/// `ClipboardBlobs/`. UserDefaults (used by `CaptureHistoryStore`) is unsuitable
-/// here because it is loaded wholesale and rewritten on every change, and image
-/// blobs make the payload far too large for that.
+/// `ClipboardBlobs/`. UserDefaults is unsuitable here because it is loaded wholesale
+/// and rewritten on every change, and image blobs make the payload far too large
+/// for that.
 @MainActor
 final class ClipboardStore: ObservableObject {
     @Published private(set) var entries: [ClipboardEntry] = []

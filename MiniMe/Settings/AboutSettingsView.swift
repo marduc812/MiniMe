@@ -102,7 +102,7 @@ struct AboutSettingsView: View {
             .animation(.easeInOut(duration: 0.25), value: showUpToDate)
 
             VStack(spacing: 4) {
-                Text("Screen OCR · Type It · Capture History")
+                Text("Screen OCR · Type It · Clipboard History")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.primary)
                 Text("Capture text from anywhere on your screen, retype it into any app, keep a searchable history, and prevent your Mac from sleeping - all from the menu bar.")

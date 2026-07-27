@@ -33,7 +33,6 @@ enum SleepDuration: String, CaseIterable, Identifiable {
 
 @MainActor
 class SettingsManager: ObservableObject {
-    @AppStorage("autoCopyToClipboard") var autoCopyToClipboard = true
     @AppStorage("playSound") var playSound = true
     @AppStorage("recognitionLanguage") var recognitionLanguage = "automatic"
     @AppStorage("lineAwareOCR") var lineAwareOCR = true
@@ -81,9 +80,6 @@ class SettingsManager: ObservableObject {
     @Published var captureShortcut: CustomShortcut {
         didSet { saveShortcuts() }
     }
-    @Published var historyShortcut: CustomShortcut {
-        didSet { saveShortcuts() }
-    }
     @Published var typeItShortcut: CustomShortcut {
         didSet { saveShortcuts() }
     }
@@ -104,7 +100,6 @@ class SettingsManager: ObservableObject {
     var shortcutSet: ShortcutSet {
         ShortcutSet(
             capture: captureShortcut,
-            history: historyShortcut,
             typeIt: typeItShortcut,
             moveMouse: moveMouseShortcut,
             clipboard: clipboardShortcut
@@ -152,13 +147,6 @@ class SettingsManager: ObservableObject {
             captureShortcut = .defaultCapture
         }
 
-        if let data = UserDefaults.standard.data(forKey: "historyShortcut"),
-           let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
-            historyShortcut = shortcut
-        } else {
-            historyShortcut = .defaultHistory
-        }
-
         if let data = UserDefaults.standard.data(forKey: "typeItShortcut"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             typeItShortcut = shortcut
@@ -198,9 +186,6 @@ class SettingsManager: ObservableObject {
         if let data = try? JSONEncoder().encode(captureShortcut) {
             UserDefaults.standard.set(data, forKey: "captureShortcut")
         }
-        if let data = try? JSONEncoder().encode(historyShortcut) {
-            UserDefaults.standard.set(data, forKey: "historyShortcut")
-        }
         if let data = try? JSONEncoder().encode(typeItShortcut) {
             UserDefaults.standard.set(data, forKey: "typeItShortcut")
         }
@@ -214,7 +199,6 @@ class SettingsManager: ObservableObject {
 
     func resetToDefaults() {
         captureShortcut = .defaultCapture
-        historyShortcut = .defaultHistory
         typeItShortcut = .defaultTypeIt
         moveMouseShortcut = .defaultMoveMouse
         clipboardShortcut = .defaultClipboard

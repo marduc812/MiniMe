@@ -52,12 +52,12 @@ final class MiniMeUITests: XCTestCase {
     }
 
     @MainActor
-    func testMenuContainsHistoryButton() throws {
+    func testMenuContainsClipboardButton() throws {
         let menuBarsQuery = app.menuBars
-        let historyButton = menuBarsQuery.menuItems["History"]
+        let clipboardButton = menuBarsQuery.menuItems["Clipboard"]
 
-        if historyButton.exists {
-            XCTAssertTrue(historyButton.isEnabled)
+        if clipboardButton.exists {
+            XCTAssertTrue(clipboardButton.isEnabled)
         }
     }
 

@@ -10,6 +10,6 @@ import Testing
 
 // Main test suite entry point
 // Individual test files:
-// - CaptureEntryTests.swift: Tests for CaptureEntry model
 // - CustomShortcutTests.swift: Tests for CustomShortcut model
-// - CaptureHistoryStoreTests.swift: Tests for history store functionality
+// - ClipboardEntryTests.swift: Tests for ClipboardEntry model
+// - ClipboardStoreTests.swift: Tests for clipboard history store functionality

@@ -20,17 +20,6 @@ struct CustomShortcutTests {
         #expect(flags.contains(.shift))
     }
 
-    @Test func defaultHistoryShortcutIsCommandShiftH() {
-        let shortcut = CustomShortcut.defaultHistory
-
-        // keyCode 4 = 'H'
-        #expect(shortcut.keyCode == 4)
-        // Command + Shift modifiers
-        let flags = NSEvent.ModifierFlags(rawValue: shortcut.modifiers)
-        #expect(flags.contains(.command))
-        #expect(flags.contains(.shift))
-    }
-
     @Test func displayStringShowsModifiersAndKey() {
         let shortcut = CustomShortcut.defaultCapture
         let display = shortcut.displayString
@@ -132,10 +121,9 @@ struct CustomShortcutTests {
         #expect(!CustomShortcut.defaultClipboard.matches(keyCode: 8, modifiers: 0))
     }
 
-    @Test func shortcutSetHoldsAllFiveShortcuts() {
+    @Test func shortcutSetHoldsAllFourShortcuts() {
         let set = ShortcutSet(
             capture: .defaultCapture,
-            history: .defaultHistory,
             typeIt: .defaultTypeIt,
             moveMouse: .defaultMoveMouse,
             clipboard: .defaultClipboard
@@ -143,7 +131,6 @@ struct CustomShortcutTests {
         #expect(set.clipboard == .defaultClipboard)
         #expect(set == ShortcutSet(
             capture: .defaultCapture,
-            history: .defaultHistory,
             typeIt: .defaultTypeIt,
             moveMouse: .defaultMoveMouse,
             clipboard: .defaultClipboard

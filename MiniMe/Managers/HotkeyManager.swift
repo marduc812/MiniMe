@@ -43,7 +43,6 @@ class HotkeyManager: ObservableObject {
     @Published var hasAccessibilityPermission: Bool = true // Not needed for Carbon hotkeys
 
     var onCapture: (@MainActor () -> Void)?
-    var onHistory: (@MainActor () -> Void)?
     var onTypeIt: (@MainActor () -> Void)?
     var onToggleMouseMove: (@MainActor () -> Void)?
     var onEscape: (@MainActor () -> Void)?
@@ -51,7 +50,6 @@ class HotkeyManager: ObservableObject {
 
     private var shortcuts = ShortcutSet(
         capture: .defaultCapture,
-        history: .defaultHistory,
         typeIt: .defaultTypeIt,
         moveMouse: .defaultMoveMouse,
         clipboard: .defaultClipboard
@@ -60,7 +58,7 @@ class HotkeyManager: ObservableObject {
     // Signature "KIMO" for main hotkeys
     private static let mainSignature = OSType(0x4B494D4F)
     private static let captureHotkeyID = EventHotKeyID(signature: mainSignature, id: 1)
-    private static let historyHotkeyID = EventHotKeyID(signature: mainSignature, id: 2)
+    // id 2 was the history hotkey, retired with the capture-history feature.
     private static let escapeHotkeyID = EventHotKeyID(signature: mainSignature, id: 3)
     private static let typeItHotkeyID = EventHotKeyID(signature: mainSignature, id: 4)
     private static let moveMouseHotkeyID = EventHotKeyID(signature: mainSignature, id: 5)
@@ -127,9 +125,6 @@ class HotkeyManager: ObservableObject {
             case 1:
                 print("[HotkeyManager] Capture hotkey triggered")
                 manager.onCapture?()
-            case 2:
-                print("[HotkeyManager] History hotkey triggered")
-                manager.onHistory?()
             case 4:
                 print("[HotkeyManager] Type It hotkey triggered")
                 manager.onTypeIt?()
@@ -154,7 +149,6 @@ class HotkeyManager: ObservableObject {
         HotkeyManager.sharedInstance = self
 
         register(shortcuts.capture,   id: Self.captureHotkeyID,   label: "capture")
-        register(shortcuts.history,   id: Self.historyHotkeyID,   label: "history")
         register(shortcuts.typeIt,    id: Self.typeItHotkeyID,    label: "type it")
         register(shortcuts.moveMouse, id: Self.moveMouseHotkeyID, label: "move mouse")
         register(shortcuts.clipboard, id: Self.clipboardHotkeyID, label: "clipboard")

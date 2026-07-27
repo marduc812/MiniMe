@@ -32,10 +32,6 @@ struct ImageToTextSettingsView: View {
         Form {
             Section("Output") {
                 HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "doc.on.clipboard.fill", color: .blue)
-                    Toggle("Copy text to clipboard automatically", isOn: $settings.autoCopyToClipboard)
-                }
-                HStack(spacing: 10) {
                     SettingsRowIcon(systemName: "speaker.wave.2.fill", color: .green)
                     Toggle("Play sound on capture", isOn: $settings.playSound)
                 }

@@ -17,12 +17,6 @@ struct ShortcutsSettingsView: View {
                     Spacer()
                     ShortcutRecorderButton(shortcut: $settings.captureShortcut)
                 }
-                HStack(spacing: 10) {
-                    SettingsRowIcon(systemName: "clock.arrow.circlepath", color: .orange)
-                    Text("Open History")
-                    Spacer()
-                    ShortcutRecorderButton(shortcut: $settings.historyShortcut)
-                }
             }
 
             Section("Type It") {
