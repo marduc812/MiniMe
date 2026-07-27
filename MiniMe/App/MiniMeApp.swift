@@ -389,6 +389,18 @@ struct MenuContentView: View {
 
             if settingsManager.isEnabled(.preventSleep) {
                 Menu {
+                    Button {
+                        settingsManager.disablePreventSleep()
+                    } label: {
+                        if settingsManager.activeSleepDuration == nil {
+                            Label("Off", systemImage: "checkmark")
+                        } else {
+                            Text("Off")
+                        }
+                    }
+
+                    Divider()
+
                     ForEach(SleepDuration.allCases) { duration in
                         Button {
                             settingsManager.enablePreventSleep(duration)
@@ -405,14 +417,6 @@ struct MenuContentView: View {
                         Label("Prevent Sleep (\(active.rawValue))", systemImage: "moon.zzz.fill")
                     } else {
                         Label("Prevent Sleep", systemImage: "moon.zzz")
-                    }
-                }
-
-                if settingsManager.activeSleepDuration != nil {
-                    Button {
-                        settingsManager.disablePreventSleep()
-                    } label: {
-                        Label("Turn Off Prevent Sleep", systemImage: "moon.fill")
                     }
                 }
             }
