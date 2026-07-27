@@ -85,7 +85,13 @@ enum ClipboardThumbnailer {
             }
         }
 
+        // `icon(forFile:)` hands back a 32×32pt image by default. Since `pngData`
+        // never upscales, encoding it as-is would bake a ~32px file that looks
+        // soft in the row — worst on the audio/archive/app types where the system
+        // icon IS the preview. The underlying NSImage carries representations up
+        // to 512px, so resizing first makes it pick a sharp one.
         let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: maxDimension, height: maxDimension)
         return pngData(from: icon, fitting: maxDimension)
     }
 }

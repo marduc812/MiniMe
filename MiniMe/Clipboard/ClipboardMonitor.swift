@@ -119,10 +119,15 @@ final class ClipboardMonitor: ObservableObject {
         let fileName = "\(UUID().uuidString).png"
         guard store.writeBlob(data, named: fileName) else { return nil }
 
+        // Measured from the encoded blob, not from `image.size`. NSImage.size is in
+        // POINTS, so a Retina capture would report half its real resolution and the
+        // title would read "Image 1440×900" for a 2880×1800 file.
+        let rep = NSBitmapImageRep(data: data)
+
         return .image(
             fileName: fileName,
-            pixelWidth: Int(image.size.width.rounded()),
-            pixelHeight: Int(image.size.height.rounded())
+            pixelWidth: rep?.pixelsWide ?? Int(image.size.width.rounded()),
+            pixelHeight: rep?.pixelsHigh ?? Int(image.size.height.rounded())
         )
     }
 
