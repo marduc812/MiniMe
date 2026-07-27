@@ -34,6 +34,15 @@ struct ShortcutsSettingsView: View {
                 }
             }
 
+            Section("Clipboard") {
+                HStack(spacing: 10) {
+                    SettingsRowIcon(systemName: "doc.on.clipboard.fill", color: .teal)
+                    Text("Open clipboard picker")
+                    Spacer()
+                    ShortcutRecorderButton(shortcut: $settings.clipboardShortcut)
+                }
+            }
+
             Section("Mouse") {
                 HStack(spacing: 10) {
                     SettingsRowIcon(systemName: "cursorarrow.motionlines", color: .indigo)

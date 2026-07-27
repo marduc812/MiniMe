@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var onCapture: (() -> Void)?
     var onHistory: (() -> Void)?
     var onSettings: (() -> Void)?
+    var onClipboard: (() -> Void)?
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         NotificationCenter.default.post(name: .appShouldShowMenu, object: nil)
@@ -30,6 +31,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func menuCapture() { onCapture?() }
     @objc func menuHistory() { onHistory?() }
     @objc func menuSettings() { onSettings?() }
+    @objc func menuClipboard() { onClipboard?() }
 
 }
 
@@ -43,6 +45,9 @@ struct MiniMeApp: App {
     @StateObject private var textPreviewManager = TextPreviewManager()
     @StateObject private var onboardingManager = OnboardingManager()
     @StateObject private var updateManager = UpdateManager()
+    @StateObject private var clipboardStore = ClipboardStore()
+    @StateObject private var clipboardPanel = ClipboardPanelController()
+    @State private var clipboardMonitor: ClipboardMonitor?
     @ObservedObject private var typingService = TypingService.shared
     @ObservedObject private var mouseMover = MouseMoverManager.shared
     @ObservedObject private var scheduler = ScheduledActionManager.shared
@@ -61,7 +66,9 @@ struct MiniMeApp: App {
                 settingsManager: settingsManager,
                 hotkeyManager: hotkeyManager,
                 textPreviewManager: textPreviewManager,
-                updateManager: updateManager
+                updateManager: updateManager,
+                clipboardStore: clipboardStore,
+                showClipboard: { showClipboardPicker() }
             )
         } label: {
             if let count = typingService.countdown {
@@ -97,23 +104,27 @@ struct MiniMeApp: App {
                 screenCapture.lastExtractedText = nil
             }
         }
-        .onChange(of: settingsManager.captureShortcut) { _, newValue in
-            hotkeyManager.updateShortcuts(capture: newValue, history: settingsManager.historyShortcut, typeIt: settingsManager.typeItShortcut, moveMouse: settingsManager.moveMouseShortcut)
+        .onChange(of: settingsManager.shortcutSet) { _, newValue in
+            hotkeyManager.updateShortcuts(newValue)
         }
-        .onChange(of: settingsManager.historyShortcut) { _, newValue in
-            hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: newValue, typeIt: settingsManager.typeItShortcut, moveMouse: settingsManager.moveMouseShortcut)
+        .onChange(of: settingsManager.clipboardHistoryEnabled) { _, enabled in
+            enabled ? clipboardMonitor?.start() : clipboardMonitor?.stop()
         }
-        .onChange(of: settingsManager.typeItShortcut) { _, newValue in
-            hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: settingsManager.historyShortcut, typeIt: newValue, moveMouse: settingsManager.moveMouseShortcut)
+        .onChange(of: settingsManager.clipboardCaptureImagesAndFiles) { _, newValue in
+            clipboardMonitor?.captureImagesAndFiles = newValue
         }
-        .onChange(of: settingsManager.moveMouseShortcut) { _, newValue in
-            hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: settingsManager.historyShortcut, typeIt: settingsManager.typeItShortcut, moveMouse: newValue)
+        .onChange(of: settingsManager.clipboardIgnoreConcealed) { _, newValue in
+            clipboardMonitor?.ignoreConcealed = newValue
+        }
+        .onChange(of: settingsManager.clipboardMaxEntries) { _, newValue in
+            clipboardStore.maxEntries = newValue
         }
         .onChange(of: hasSetupHotkeys, initial: true) { _, _ in
             if !hasSetupHotkeys {
                 hasSetupHotkeys = true
                 setupHotkeys()
                 setupAppDelegate()
+                startClipboardMonitor()
                 Task { await updateManager.checkForUpdatesIfNeeded() }
                 NotificationCenter.default.addObserver(
                     forName: .appShouldShowMenu,
@@ -174,22 +185,65 @@ struct MiniMeApp: App {
 
     private func setupAppDelegate() {
         appDelegate.onCapture = {
+            self.clipboardPanel.close()
             self.textPreviewManager.closePreviewWindow()
             self.historyStore.closeHistoryWindow()
             self.settingsManager.closeSettingsWindow()
             self.screenCapture.startAreaSelection()
         }
         appDelegate.onHistory = {
+            self.clipboardPanel.close()
             self.textPreviewManager.closePreviewWindow()
             self.settingsManager.closeSettingsWindow()
             NSApp.activate(ignoringOtherApps: true)
             self.historyStore.showHistoryWindow()
         }
         appDelegate.onSettings = {
+            self.clipboardPanel.close()
             self.textPreviewManager.closePreviewWindow()
             self.historyStore.closeHistoryWindow()
             NSApp.activate(ignoringOtherApps: true)
-            self.settingsManager.showSettingsWindow(hotkeyManager: self.hotkeyManager, updateManager: self.updateManager)
+            self.settingsManager.showSettingsWindow(
+                hotkeyManager: self.hotkeyManager,
+                updateManager: self.updateManager,
+                clipboardStore: self.clipboardStore
+            )
+        }
+        appDelegate.onClipboard = {
+            self.showClipboardPicker()
+        }
+    }
+
+    private func startClipboardMonitor() {
+        clipboardStore.maxEntries = settingsManager.clipboardMaxEntries
+
+        let monitor = ClipboardMonitor(store: clipboardStore)
+        monitor.captureImagesAndFiles = settingsManager.clipboardCaptureImagesAndFiles
+        monitor.ignoreConcealed = settingsManager.clipboardIgnoreConcealed
+        clipboardMonitor = monitor
+
+        if settingsManager.clipboardHistoryEnabled {
+            monitor.start()
+        }
+    }
+
+    private func showClipboardPicker() {
+        guard let clipboardMonitor else { return }
+        textPreviewManager.closePreviewWindow()
+        historyStore.closeHistoryWindow()
+        settingsManager.closeSettingsWindow()
+
+        clipboardPanel.toggle(
+            store: clipboardStore,
+            settings: settingsManager,
+            monitor: clipboardMonitor
+        ) {
+            NSApp.activate(ignoringOtherApps: true)
+            settingsManager.showSettingsWindow(
+                hotkeyManager: hotkeyManager,
+                updateManager: updateManager,
+                clipboardStore: clipboardStore
+            )
         }
     }
 
@@ -220,6 +274,11 @@ struct MiniMeApp: App {
         historyItem.target = appDelegate
         menu.addItem(historyItem)
 
+        let clipboardItem = NSMenuItem(title: "Clipboard", action: #selector(AppDelegate.menuClipboard), keyEquivalent: "")
+        clipboardItem.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
+        clipboardItem.target = appDelegate
+        menu.addItem(clipboardItem)
+
         menu.addItem(.separator())
 
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(AppDelegate.menuSettings), keyEquivalent: "")
@@ -242,14 +301,16 @@ struct MiniMeApp: App {
         // Connect screenCapture to hotkeyManager for escape key handling
         screenCapture.setHotkeyManager(hotkeyManager)
 
-        hotkeyManager.updateShortcuts(capture: settingsManager.captureShortcut, history: settingsManager.historyShortcut, typeIt: settingsManager.typeItShortcut, moveMouse: settingsManager.moveMouseShortcut)
+        hotkeyManager.updateShortcuts(settingsManager.shortcutSet)
         hotkeyManager.onCapture = {
+            self.clipboardPanel.close()
             self.textPreviewManager.closePreviewWindow()
             self.historyStore.closeHistoryWindow()
             self.settingsManager.closeSettingsWindow()
             self.screenCapture.startAreaSelection()
         }
         hotkeyManager.onHistory = {
+            self.clipboardPanel.close()
             self.textPreviewManager.closePreviewWindow()
             self.settingsManager.closeSettingsWindow()
             self.historyStore.showHistoryWindow()
@@ -259,6 +320,9 @@ struct MiniMeApp: App {
         }
         hotkeyManager.onToggleMouseMove = {
             MouseMoverManager.shared.toggle()
+        }
+        hotkeyManager.onClipboard = {
+            self.showClipboardPicker()
         }
         hotkeyManager.startMonitoring()
     }
@@ -272,6 +336,8 @@ struct MenuContentView: View {
     @ObservedObject var hotkeyManager: HotkeyManager
     @ObservedObject var textPreviewManager: TextPreviewManager
     @ObservedObject var updateManager: UpdateManager
+    @ObservedObject var clipboardStore: ClipboardStore
+    let showClipboard: () -> Void
     @ObservedObject var mouseMover = MouseMoverManager.shared
 
     var body: some View {
@@ -308,6 +374,13 @@ struct MenuContentView: View {
                 Label("History", systemImage: "clock.arrow.circlepath")
             }
             .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.historyShortcut))
+
+            Button {
+                DispatchQueue.main.async { showClipboard() }
+            } label: {
+                Label("Clipboard", systemImage: "doc.on.clipboard")
+            }
+            .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.clipboardShortcut))
 
             Divider()
 
@@ -357,7 +430,11 @@ struct MenuContentView: View {
                     textPreviewManager.closePreviewWindow()
                     NSApp.activate(ignoringOtherApps: true)
                     historyStore.closeHistoryWindow()
-                    settingsManager.showSettingsWindow(hotkeyManager: hotkeyManager, updateManager: updateManager)
+                    settingsManager.showSettingsWindow(
+                        hotkeyManager: hotkeyManager,
+                        updateManager: updateManager,
+                        clipboardStore: clipboardStore
+                    )
                 }
             } label: {
                 Label("Settings...", systemImage: "gearshape")

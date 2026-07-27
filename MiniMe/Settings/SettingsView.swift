@@ -9,6 +9,7 @@ struct SettingsView: View {
     @ObservedObject var settings: SettingsManager
     @ObservedObject var hotkeyManager: HotkeyManager
     @ObservedObject var updateManager: UpdateManager
+    @ObservedObject var clipboardStore: ClipboardStore
     @State private var selectedTab = 0
 
     var body: some View {
@@ -63,22 +64,31 @@ struct SettingsView: View {
                 }
 
                 SettingsTabButton(
-                    title: "Shortcuts",
-                    icon: "command.square.fill",
-                    gradient: LinearGradient(colors: [.teal, .green], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    title: "Clipboard",
+                    icon: "doc.on.clipboard.fill",
+                    gradient: LinearGradient(colors: [.teal, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
                     isSelected: selectedTab == 5
                 ) {
                     withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 5 }
                 }
 
                 SettingsTabButton(
+                    title: "Shortcuts",
+                    icon: "command.square.fill",
+                    gradient: LinearGradient(colors: [.teal, .green], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    isSelected: selectedTab == 6
+                ) {
+                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 6 }
+                }
+
+                SettingsTabButton(
                     title: "About",
                     icon: "info.circle.fill",
                     gradient: LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    isSelected: selectedTab == 6,
+                    isSelected: selectedTab == 7,
                     badge: updateManager.updateAvailable
                 ) {
-                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 6 }
+                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 7 }
                 }
 
                 Spacer()
@@ -103,6 +113,8 @@ struct SettingsView: View {
                 case 4:
                     MouseMoverSettingsView(settings: settings)
                 case 5:
+                    ClipboardSettingsView(settings: settings, store: clipboardStore)
+                case 6:
                     ShortcutsSettingsView(settings: settings)
                 default:
                     AboutSettingsView(updateManager: updateManager)
@@ -112,7 +124,7 @@ struct SettingsView: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 8)
         }
-        .frame(width: 600, height: 460)
+        .frame(width: 680, height: 460)
         .background {
             ZStack {
                 VisualEffectView(material: .sidebar, blendingMode: .behindWindow)

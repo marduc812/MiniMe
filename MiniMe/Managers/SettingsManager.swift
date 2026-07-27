@@ -42,6 +42,13 @@ class SettingsManager: ObservableObject {
     @AppStorage("typeItCountdownDuration") var typeItCountdownDuration = 5
     @AppStorage("typeItCountdownSound") var typeItCountdownSound = true
 
+    // Clipboard manager
+    @AppStorage("clipboardHistoryEnabled") var clipboardHistoryEnabled = true
+    @AppStorage("clipboardPickBehavior") var clipboardPickBehavior = PasteService.PickBehavior.copyAndPaste.rawValue
+    @AppStorage("clipboardCaptureImagesAndFiles") var clipboardCaptureImagesAndFiles = true
+    @AppStorage("clipboardIgnoreConcealed") var clipboardIgnoreConcealed = true
+    @AppStorage("clipboardMaxEntries") var clipboardMaxEntries = 200
+
     // Scheduled action (config persists; armed runtime state does not — see ScheduledActionManager)
     @AppStorage("scheduledText") var scheduledText = ""
     @AppStorage("scheduledComboEnabled") var scheduledComboEnabled = true
@@ -83,6 +90,9 @@ class SettingsManager: ObservableObject {
     @Published var moveMouseShortcut: CustomShortcut {
         didSet { saveShortcuts() }
     }
+    @Published var clipboardShortcut: CustomShortcut {
+        didSet { saveShortcuts() }
+    }
     @Published var scheduledCombo: CustomShortcut {
         didSet { saveScheduledCombo() }
     }
@@ -90,6 +100,16 @@ class SettingsManager: ObservableObject {
     @Published private(set) var activeSleepDuration: SleepDuration? = nil
     private var sleepAssertionID: IOPMAssertionID = .zero
     private var sleepTimer: Timer?
+
+    var shortcutSet: ShortcutSet {
+        ShortcutSet(
+            capture: captureShortcut,
+            history: historyShortcut,
+            typeIt: typeItShortcut,
+            moveMouse: moveMouseShortcut,
+            clipboard: clipboardShortcut
+        )
+    }
 
     func enablePreventSleep(_ duration: SleepDuration) {
         // Release any existing assertion first
@@ -153,6 +173,13 @@ class SettingsManager: ObservableObject {
             moveMouseShortcut = .defaultMoveMouse
         }
 
+        if let data = UserDefaults.standard.data(forKey: "clipboardShortcut"),
+           let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
+            clipboardShortcut = shortcut
+        } else {
+            clipboardShortcut = .defaultClipboard
+        }
+
         if let data = UserDefaults.standard.data(forKey: "scheduledCombo"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             scheduledCombo = shortcut
@@ -180,6 +207,9 @@ class SettingsManager: ObservableObject {
         if let data = try? JSONEncoder().encode(moveMouseShortcut) {
             UserDefaults.standard.set(data, forKey: "moveMouseShortcut")
         }
+        if let data = try? JSONEncoder().encode(clipboardShortcut) {
+            UserDefaults.standard.set(data, forKey: "clipboardShortcut")
+        }
     }
 
     func resetToDefaults() {
@@ -187,22 +217,32 @@ class SettingsManager: ObservableObject {
         historyShortcut = .defaultHistory
         typeItShortcut = .defaultTypeIt
         moveMouseShortcut = .defaultMoveMouse
+        clipboardShortcut = .defaultClipboard
     }
 
-    func showSettingsWindow(hotkeyManager: HotkeyManager, updateManager: UpdateManager) {
+    func showSettingsWindow(
+        hotkeyManager: HotkeyManager,
+        updateManager: UpdateManager,
+        clipboardStore: ClipboardStore
+    ) {
         if let existingWindow = settingsWindow, existingWindow.isVisible {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        let settingsView = SettingsView(settings: self, hotkeyManager: hotkeyManager, updateManager: updateManager)
+        let settingsView = SettingsView(
+            settings: self,
+            hotkeyManager: hotkeyManager,
+            updateManager: updateManager,
+            clipboardStore: clipboardStore
+        )
         let hostingController = NSHostingController(rootView: settingsView)
 
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Settings"
         window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 600, height: 460))
+        window.setContentSize(NSSize(width: 680, height: 460))
         window.center()
         window.isReleasedWhenClosed = false
 

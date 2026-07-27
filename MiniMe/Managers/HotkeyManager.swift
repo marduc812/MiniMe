@@ -36,10 +36,7 @@ private func hotkeyEventHandler(
 
 @MainActor
 class HotkeyManager: ObservableObject {
-    private var captureHotkeyRef: EventHotKeyRef?
-    private var historyHotkeyRef: EventHotKeyRef?
-    private var typeItHotkeyRef: EventHotKeyRef?
-    private var moveMouseHotkeyRef: EventHotKeyRef?
+    private var hotkeyRefs: [UInt32: EventHotKeyRef] = [:]
     private var escapeHotkeyRef: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
 
@@ -50,11 +47,15 @@ class HotkeyManager: ObservableObject {
     var onTypeIt: (@MainActor () -> Void)?
     var onToggleMouseMove: (@MainActor () -> Void)?
     var onEscape: (@MainActor () -> Void)?
+    var onClipboard: (@MainActor () -> Void)?
 
-    private var captureShortcut: CustomShortcut = .defaultCapture
-    private var historyShortcut: CustomShortcut = .defaultHistory
-    private var typeItShortcut: CustomShortcut = .defaultTypeIt
-    private var moveMouseShortcut: CustomShortcut = .defaultMoveMouse
+    private var shortcuts = ShortcutSet(
+        capture: .defaultCapture,
+        history: .defaultHistory,
+        typeIt: .defaultTypeIt,
+        moveMouse: .defaultMoveMouse,
+        clipboard: .defaultClipboard
+    )
 
     // Signature "KIMO" for main hotkeys
     private static let mainSignature = OSType(0x4B494D4F)
@@ -63,6 +64,7 @@ class HotkeyManager: ObservableObject {
     private static let escapeHotkeyID = EventHotKeyID(signature: mainSignature, id: 3)
     private static let typeItHotkeyID = EventHotKeyID(signature: mainSignature, id: 4)
     private static let moveMouseHotkeyID = EventHotKeyID(signature: mainSignature, id: 5)
+    private static let clipboardHotkeyID = EventHotKeyID(signature: mainSignature, id: 6)
 
     private static weak var sharedInstance: HotkeyManager?
 
@@ -91,13 +93,8 @@ class HotkeyManager: ObservableObject {
         }
     }
 
-    func updateShortcuts(capture: CustomShortcut, history: CustomShortcut, typeIt: CustomShortcut, moveMouse: CustomShortcut) {
-        captureShortcut = capture
-        historyShortcut = history
-        typeItShortcut = typeIt
-        moveMouseShortcut = moveMouse
-
-        // Re-register hotkeys with new shortcuts
+    func updateShortcuts(_ shortcuts: ShortcutSet) {
+        self.shortcuts = shortcuts
         startMonitoring()
     }
 
@@ -142,6 +139,9 @@ class HotkeyManager: ObservableObject {
             case 3:
                 print("[HotkeyManager] Escape hotkey triggered")
                 manager.onEscape?()
+            case 6:
+                print("[HotkeyManager] Clipboard hotkey triggered")
+                manager.onClipboard?()
             default:
                 print("[HotkeyManager] Unknown hotkey id: \(id)")
             }
@@ -153,72 +153,36 @@ class HotkeyManager: ObservableObject {
 
         HotkeyManager.sharedInstance = self
 
-        // Register capture hotkey
-        let captureStatus = RegisterEventHotKey(
-            UInt32(captureShortcut.keyCode),
-            carbonModifiers(from: captureShortcut.modifiers),
-            Self.captureHotkeyID,
+        register(shortcuts.capture,   id: Self.captureHotkeyID,   label: "capture")
+        register(shortcuts.history,   id: Self.historyHotkeyID,   label: "history")
+        register(shortcuts.typeIt,    id: Self.typeItHotkeyID,    label: "type it")
+        register(shortcuts.moveMouse, id: Self.moveMouseHotkeyID, label: "move mouse")
+        register(shortcuts.clipboard, id: Self.clipboardHotkeyID, label: "clipboard")
+    }
+
+    private func register(_ shortcut: CustomShortcut, id: EventHotKeyID, label: String) {
+        var ref: EventHotKeyRef?
+        let status = RegisterEventHotKey(
+            UInt32(shortcut.keyCode),
+            carbonModifiers(from: shortcut.modifiers),
+            id,
             GetApplicationEventTarget(),
             0,
-            &captureHotkeyRef
+            &ref
         )
 
-        print("[HotkeyManager] Registered capture hotkey: keyCode=\(captureShortcut.keyCode), status=\(captureStatus)")
+        if status == noErr, let ref {
+            hotkeyRefs[id.id] = ref
+        }
 
-        // Register history hotkey
-        let historyStatus = RegisterEventHotKey(
-            UInt32(historyShortcut.keyCode),
-            carbonModifiers(from: historyShortcut.modifiers),
-            Self.historyHotkeyID,
-            GetApplicationEventTarget(),
-            0,
-            &historyHotkeyRef
-        )
-
-        print("[HotkeyManager] Registered history hotkey: keyCode=\(historyShortcut.keyCode), status=\(historyStatus)")
-
-        // Register type it hotkey
-        let typeItStatus = RegisterEventHotKey(
-            UInt32(typeItShortcut.keyCode),
-            carbonModifiers(from: typeItShortcut.modifiers),
-            Self.typeItHotkeyID,
-            GetApplicationEventTarget(),
-            0,
-            &typeItHotkeyRef
-        )
-
-        print("[HotkeyManager] Registered type it hotkey: keyCode=\(typeItShortcut.keyCode), status=\(typeItStatus)")
-
-        // Register move mouse hotkey
-        let moveMouseStatus = RegisterEventHotKey(
-            UInt32(moveMouseShortcut.keyCode),
-            carbonModifiers(from: moveMouseShortcut.modifiers),
-            Self.moveMouseHotkeyID,
-            GetApplicationEventTarget(),
-            0,
-            &moveMouseHotkeyRef
-        )
-
-        print("[HotkeyManager] Registered move mouse hotkey: keyCode=\(moveMouseShortcut.keyCode), status=\(moveMouseStatus)")
+        print("[HotkeyManager] Registered \(label) hotkey: keyCode=\(shortcut.keyCode), status=\(status)")
     }
 
     func stopMonitoring() {
-        if let ref = captureHotkeyRef {
+        for ref in hotkeyRefs.values {
             UnregisterEventHotKey(ref)
-            captureHotkeyRef = nil
         }
-        if let ref = historyHotkeyRef {
-            UnregisterEventHotKey(ref)
-            historyHotkeyRef = nil
-        }
-        if let ref = typeItHotkeyRef {
-            UnregisterEventHotKey(ref)
-            typeItHotkeyRef = nil
-        }
-        if let ref = moveMouseHotkeyRef {
-            UnregisterEventHotKey(ref)
-            moveMouseHotkeyRef = nil
-        }
+        hotkeyRefs.removeAll()
     }
 
     // MARK: - Escape Hotkey (for selection mode)
