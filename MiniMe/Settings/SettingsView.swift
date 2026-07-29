@@ -21,6 +21,15 @@ private struct SettingsTab: Identifiable {
     var requires: Tool? = nil
 }
 
+/// Tabs are shown under a heading rather than as one long run, so the tool tabs
+/// — the ones that come and go as tools are switched on and off — are visibly a
+/// set, separate from the tabs that are always there.
+private struct SettingsTabGroup: Identifiable {
+    var id: String { heading }
+    let heading: String
+    let tabs: [SettingsTab]
+}
+
 struct SettingsView: View {
     @ObservedObject var settings: SettingsManager
     @ObservedObject var hotkeyManager: HotkeyManager
@@ -28,16 +37,24 @@ struct SettingsView: View {
     @ObservedObject var clipboardStore: ClipboardStore
     @State private var selectedTab = "general"
 
-    private static let allTabs: [SettingsTab] = [
-        SettingsTab(id: "general", title: "General", icon: "gearshape.fill", tint: .blue),
-        SettingsTab(id: "capture", title: "Capture", icon: "text.viewfinder", tint: .orange, requires: .capture),
-        SettingsTab(id: "typeIt", title: "Type It", icon: "keyboard.fill", tint: .purple, requires: .typeIt),
-        SettingsTab(id: "scheduler", title: "Scheduler", icon: "alarm.fill", tint: .pink),
-        SettingsTab(id: "mouse", title: "Mouse", icon: "cursorarrow.motionlines", tint: .indigo, requires: .moveMouse),
-        SettingsTab(id: "clipboard", title: "Clipboard", icon: "doc.on.clipboard.fill", tint: .teal, requires: .clipboard),
-        SettingsTab(id: "shortcuts", title: "Shortcuts", icon: "command.square.fill", tint: .green),
-        SettingsTab(id: "about", title: "About", icon: "info.circle.fill", tint: .gray),
+    private static let tabGroups: [SettingsTabGroup] = [
+        SettingsTabGroup(heading: "General", tabs: [
+            SettingsTab(id: "general", title: "General", icon: "gearshape.fill", tint: .blue),
+        ]),
+        SettingsTabGroup(heading: "Tools", tabs: [
+            SettingsTab(id: "capture", title: "Capture", icon: "text.viewfinder", tint: .orange, requires: .capture),
+            SettingsTab(id: "typeIt", title: "Type It", icon: "keyboard.fill", tint: .purple, requires: .typeIt),
+            SettingsTab(id: "scheduler", title: "Scheduler", icon: "alarm.fill", tint: .pink),
+            SettingsTab(id: "mouse", title: "Mouse", icon: "cursorarrow.motionlines", tint: .indigo, requires: .moveMouse),
+            SettingsTab(id: "clipboard", title: "Clipboard", icon: "doc.on.clipboard.fill", tint: .teal, requires: .clipboard),
+        ]),
+        SettingsTabGroup(heading: "App", tabs: [
+            SettingsTab(id: "shortcuts", title: "Shortcuts", icon: "command.square.fill", tint: .green),
+            SettingsTab(id: "about", title: "About", icon: "info.circle.fill", tint: .gray),
+        ]),
     ]
+
+    private static let allTabs: [SettingsTab] = tabGroups.flatMap(\.tabs)
 
     private func isEnabled(_ tab: SettingsTab) -> Bool {
         guard let required = tab.requires else { return true }
@@ -65,8 +82,19 @@ struct SettingsView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 2) {
-            ForEach(Self.allTabs) { tab in
-                sidebarRow(tab)
+            ForEach(Array(Self.tabGroups.enumerated()), id: \.element.id) { index, group in
+                Text(group.heading.uppercased())
+                    .font(.system(size: 10, weight: .semibold))
+                    .kerning(0.6)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.top, index == 0 ? 2 : 14)
+                    .padding(.bottom, 3)
+                    .accessibilityAddTraits(.isHeader)
+
+                ForEach(group.tabs) { tab in
+                    sidebarRow(tab)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -88,7 +116,7 @@ struct SettingsView: View {
             HStack(spacing: 8) {
                 SettingsRowIcon(systemName: tab.icon, color: tab.tint, size: 22)
                 Text(tab.title)
-                    .font(.system(size: 13))
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                 Spacer(minLength: 0)
                 if tab.id == "about" && updateManager.updateAvailable {
                     Circle()
@@ -99,14 +127,15 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 7)
             .padding(.vertical, 5)
-            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(isSelected ? Color.white : Color.primary)
+        // A tinted capsule rather than a solid accent bar: the icon tiles are
+        // already saturated, and a solid fill behind them fought with them.
+        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
         .background {
             if isSelected {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(Color.accentColor)
+                Capsule().fill(Color.accentColor.opacity(0.18))
             }
         }
         .disabled(!enabled)
@@ -142,6 +171,11 @@ struct SettingsView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Grouped forms paint their own scroll background, which is a
+            // different shade than the pane behind the title — the seam read as
+            // a rendering glitch. Hiding it lets one background run the full
+            // height of the detail pane, with only the section boxes on top.
+            .scrollContentBackground(.hidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
