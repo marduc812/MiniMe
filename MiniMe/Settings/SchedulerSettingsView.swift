@@ -11,6 +11,9 @@ struct SchedulerSettingsView: View {
 
     private let tint = Color.pink
 
+    /// Allowed range for the interval amount — enforced by both the stepper and typed entry.
+    private static let intervalRange = 1...999
+
     private var intervalSeconds: TimeInterval {
         let unit = ScheduleUnit(rawValue: settings.scheduledIntervalUnit) ?? .hours
         return Double(settings.scheduledIntervalValue) * unit.multiplier
@@ -22,10 +25,18 @@ struct SchedulerSettingsView: View {
                 SettingsRow(icon: "timer", tint: tint) {
                     Text("Run after")
                     Spacer()
-                    Text("\(settings.scheduledIntervalValue)")
+                    TextField("", value: $settings.scheduledIntervalValue, format: .number)
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
                         .monospacedDigit()
-                        .frame(minWidth: 28, alignment: .trailing)
-                    Stepper("", value: $settings.scheduledIntervalValue, in: 1...999)
+                        .frame(width: 56)
+                        .onChange(of: settings.scheduledIntervalValue) { _, value in
+                            let clamped = min(max(value, Self.intervalRange.lowerBound),
+                                              Self.intervalRange.upperBound)
+                            if clamped != value { settings.scheduledIntervalValue = clamped }
+                        }
+                    Stepper("", value: $settings.scheduledIntervalValue, in: Self.intervalRange)
                         .labelsHidden()
                     Picker("", selection: $settings.scheduledIntervalUnit) {
                         ForEach(ScheduleUnit.allCases) { unit in
@@ -45,12 +56,16 @@ struct SchedulerSettingsView: View {
 
             Section("Action") {
                 SettingsRow(icon: "text.cursor", tint: tint, alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text("Text to type")
-                        TextField("Leave empty to type nothing", text: $settings.scheduledText, axis: .vertical)
-                            .textFieldStyle(.roundedBorder)
-                            .lineLimit(1...4)
+                        MultilineTextEditor(label: "Text to type",
+                                            placeholder: "Leave empty to type nothing",
+                                            text: $settings.scheduledText)
+                        Text("Each line break is typed as a Return press.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .disabled(scheduler.isArmed)
 
