@@ -35,7 +35,7 @@ struct ClipboardDetailView: View {
         Group {
             switch entry.content {
             case .text(let string):
-                textPreview(string)
+                LinkedTextView(string: string)
             case .image(let fileName, _, _):
                 ImageBlobView(url: store.blobURL(named: fileName))
                     .padding(10)
@@ -50,16 +50,6 @@ struct ClipboardDetailView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(.separator.opacity(0.5), lineWidth: 0.5)
         )
-    }
-
-    private func textPreview(_ string: String) -> some View {
-        ScrollView {
-            Text(string)
-                .font(.system(size: 12))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-        }
     }
 
     private func filesPreview(_ paths: [String]) -> some View {
@@ -195,6 +185,48 @@ struct ClipboardDetailView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Text preview whose URLs and email addresses are real, clickable links.
+///
+/// The scan happens off the main actor and is skipped past a size where a
+/// clipping is prose or a payload rather than something with links worth
+/// hunting for — previews change on every hover, so this cannot be slow.
+private struct LinkedTextView: View {
+    let string: String
+
+    @State private var attributed: AttributedString?
+
+    private static let maxScanLength = 20_000
+
+    var body: some View {
+        ScrollView {
+            Text(attributed ?? AttributedString(string))
+                .font(.system(size: 12))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+        }
+        .task(id: string) {
+            attributed = await Task.detached { LinkedTextView.linkify(string) }.value
+        }
+    }
+
+    nonisolated private static func linkify(_ string: String) -> AttributedString {
+        var attributed = AttributedString(string)
+        guard string.count <= maxScanLength,
+              let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        else { return attributed }
+
+        for match in detector.matches(in: string, range: NSRange(string.startIndex..., in: string)) {
+            guard let url = match.url,
+                  let stringRange = Range(match.range, in: string),
+                  let range = Range(stringRange, in: attributed) else { continue }
+            attributed[range].link = url
+            attributed[range].underlineStyle = .single
+        }
+        return attributed
     }
 }
 

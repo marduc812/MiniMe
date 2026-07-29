@@ -72,6 +72,14 @@ struct ClipboardPickerView: View {
                 .strokeBorder(.white.opacity(0.2), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
+        // Links in the preview open in the browser and dismiss the picker: the
+        // panel floats at pop-up-menu level, so leaving it up would park it on
+        // top of the page the user just asked for.
+        .environment(\.openURL, OpenURLAction { url in
+            NSWorkspace.shared.open(url)
+            onClose()
+            return .handled
+        })
         .onAppear {
             searchFocused = true
             selectedID = filteredEntries.first?.id
@@ -340,6 +348,28 @@ private extension ClipboardStore {
             timestamp: Date().addingTimeInterval(-60 * 60 * 24 * 3),
             sourceAppName: "Finder",
             sourceAppBundleID: "com.apple.finder"
+        ))
+        store.add(ClipboardEntry(
+            content: .text(#"{"id": 7, "tags": ["ocr", "clipboard"], "enabled": true}"#),
+            timestamp: Date().addingTimeInterval(-60 * 60 * 24 * 4),
+            sourceAppName: "Xcode",
+            sourceAppBundleID: "com.apple.dt.Xcode"
+        ))
+        store.add(ClipboardEntry(
+            content: .text("marduc812@gmail.com"),
+            timestamp: Date().addingTimeInterval(-60 * 60 * 24 * 6)
+        ))
+        store.add(ClipboardEntry(
+            content: .text("550e8400-e29b-41d4-a716-446655440000"),
+            timestamp: Date().addingTimeInterval(-60 * 60 * 24 * 8)
+        ))
+        store.add(ClipboardEntry(
+            content: .text("#FF8800"),
+            timestamp: Date().addingTimeInterval(-60 * 60 * 24 * 10)
+        ))
+        store.add(ClipboardEntry(
+            content: .text("2026-07-29T10:15:30Z"),
+            timestamp: Date().addingTimeInterval(-60 * 60 * 24 * 12)
         ))
         store.add(ClipboardEntry(
             content: .text("kimeno"),

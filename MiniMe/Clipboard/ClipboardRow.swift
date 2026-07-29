@@ -37,9 +37,11 @@ enum ClipboardIconResolver {
         return "\(months / 12)y"
     }
 
-    static func symbol(for content: ClipboardContent) -> String {
-        switch content {
-        case .text:  return "text.alignleft"
+    /// Text entries are icon'd by what they contain — a link, an email address,
+    /// JSON, a date, a hex value, a UUID — so the list is scannable by shape.
+    static func symbol(for entry: ClipboardEntry) -> String {
+        switch entry.content {
+        case .text:  return entry.textKind.symbolName
         case .image: return "photo"
         case .files: return "doc"
         }
@@ -125,7 +127,7 @@ struct ClipboardRow: View {
                 .frame(width: 24, height: 24)
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
         } else {
-            Image(systemName: ClipboardIconResolver.symbol(for: entry.content))
+            Image(systemName: ClipboardIconResolver.symbol(for: entry))
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(.secondary)
                 .frame(width: 24, height: 24)
