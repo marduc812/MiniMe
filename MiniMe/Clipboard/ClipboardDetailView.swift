@@ -23,6 +23,10 @@ struct ClipboardDetailView: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // Give the pane the entry's identity so hovering a new row starts a
+            // fresh preview: without it SwiftUI reuses the subtree and carries
+            // over the previous entry's loaded blob and scroll offset.
+            .id(entry.id)
         } else {
             placeholder
         }
@@ -196,20 +200,31 @@ struct ClipboardDetailView: View {
 private struct LinkedTextView: View {
     let string: String
 
-    @State private var attributed: AttributedString?
+    /// The scan result is tagged with the text it came from. Scans finish out of
+    /// order when the hover runs down the list, so an untagged cache would show
+    /// a previous entry's text next to the current entry's metadata.
+    @State private var linkified: (source: String, text: AttributedString)?
 
     private static let maxScanLength = 20_000
 
+    /// Plain text renders immediately; links light up when the scan lands.
+    private var displayed: AttributedString {
+        if let linkified, linkified.source == string { return linkified.text }
+        return AttributedString(string)
+    }
+
     var body: some View {
         ScrollView {
-            Text(attributed ?? AttributedString(string))
+            Text(displayed)
                 .font(.system(size: 12))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
         }
         .task(id: string) {
-            attributed = await Task.detached { LinkedTextView.linkify(string) }.value
+            let scanned = await Task.detached { LinkedTextView.linkify(string) }.value
+            guard !Task.isCancelled else { return }
+            linkified = (string, scanned)
         }
     }
 
@@ -235,7 +250,13 @@ private struct LinkedTextView: View {
 private struct ImageBlobView: View {
     let url: URL
 
-    @State private var image: NSImage?
+    /// Tagged like `LinkedTextView`'s scan, so a slow load for an entry the
+    /// hover already left cannot paint over the one on screen.
+    @State private var loaded: (url: URL, image: NSImage)?
+
+    private var image: NSImage? {
+        loaded.flatMap { $0.url == url ? $0.image : nil }
+    }
 
     var body: some View {
         Group {
@@ -252,7 +273,8 @@ private struct ImageBlobView: View {
         }
         .task(id: url) {
             let data = await Task.detached { try? Data(contentsOf: url) }.value
-            image = data.flatMap(NSImage.init(data:))
+            guard !Task.isCancelled, let image = data.flatMap(NSImage.init(data:)) else { return }
+            loaded = (url, image)
         }
     }
 }
