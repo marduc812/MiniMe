@@ -56,6 +56,11 @@ struct SettingsView: View {
 
     private static let allTabs: [SettingsTab] = tabGroups.flatMap(\.tabs)
 
+    /// Selection tint for the sidebar. Fixed purple rather than `Color.accentColor`
+    /// so the highlight stays legible whatever accent colour the user has set in
+    /// System Settings — the label on it is always white.
+    private static let selectionTint = Color(nsColor: .systemPurple)
+
     private func isEnabled(_ tab: SettingsTab) -> Bool {
         guard let required = tab.requires else { return true }
         return settings.isEnabled(required)
@@ -114,7 +119,14 @@ struct SettingsView: View {
             selectedTab = tab.id
         } label: {
             HStack(spacing: 8) {
-                SettingsRowIcon(systemName: tab.icon, color: tab.tint, size: 22)
+                // Bare glyph, no tile: the sidebar is a list of tabs, and a run of
+                // filled tiles down it read heavier than the content it indexes.
+                // The tint stays on the glyph, except on the selected row where the
+                // purple fill takes over and the glyph goes white with the label.
+                Image(systemName: tab.icon)
+                    .font(.system(size: 13.5, weight: .medium))
+                    .foregroundStyle(isSelected ? Color.white : tab.tint)
+                    .frame(width: 20, alignment: .center)
                 Text(tab.title)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                 Spacer(minLength: 0)
@@ -125,17 +137,20 @@ struct SettingsView: View {
                         .accessibilityLabel("Update available")
                 }
             }
-            .padding(.horizontal, 7)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        // A tinted capsule rather than a solid accent bar: the icon tiles are
-        // already saturated, and a solid fill behind them fought with them.
-        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+        // A filled capsule, not a tinted one: at 13pt the tinted label was too
+        // low-contrast to read against the sidebar material. White on a solid
+        // purple fill is legible in both light and dark appearance.
+        .foregroundStyle(isSelected ? Color.white : Color.primary)
         .background {
             if isSelected {
-                Capsule().fill(Color.accentColor.opacity(0.18))
+                Capsule()
+                    .fill(Self.selectionTint)
+                    .shadow(color: Self.selectionTint.opacity(0.35), radius: 4, y: 1)
             }
         }
         .disabled(!enabled)
