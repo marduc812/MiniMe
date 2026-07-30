@@ -10,6 +10,9 @@ struct AboutSettingsView: View {
 
     @State private var iconRotation: Double = 0
     @State private var showUpToDate = false
+    @State private var pointer: CGPoint?
+
+    private static let paneSpace = "aboutPane"
 
     private var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "–"
@@ -19,12 +22,7 @@ struct AboutSettingsView: View {
         VStack(spacing: 16) {
             Spacer()
 
-            Image("MenuBarIcon")
-                .resizable()
-                .renderingMode(.template)
-                .scaledToFit()
-                .frame(width: 64, height: 64)
-                .foregroundStyle(.primary)
+            AnimatedAboutIcon(pointer: pointer, space: Self.paneSpace)
 
             VStack(spacing: 6) {
                 Text("MiniMe")
@@ -162,6 +160,18 @@ struct AboutSettingsView: View {
                 .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Hover is tracked across the whole pane rather than just the icon, so the
+        // eyes react while you read the text below them.
+        .contentShape(Rectangle())
+        .coordinateSpace(.named(Self.paneSpace))
+        .onContinuousHover(coordinateSpace: .named(Self.paneSpace)) { phase in
+            switch phase {
+            case .active(let point):
+                pointer = point
+            case .ended:
+                pointer = nil
+            }
+        }
         .onChange(of: updateManager.isChecking) { _, checking in
             if checking {
                 // Start spinning

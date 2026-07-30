@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MenuBarIcon with the two eye circles removed so the About tab can draw and
+     animate them itself. The body subpath originally began with a relative
+     "m76-64" measured from the second eye (164,128); with the eyes gone that is
+     spelled out as the absolute "M240,64". Everything after it is untouched. -->
+<svg fill="black" width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <path d="M240,64v80a72.08124,72.08124,0,0,1-72,72H88a72.08124,72.08124,0,0,1-72-72V64a32.00221,32.00221,0,0,1,62.98779-8h98.02442A32.00221,32.00221,0,0,1,240,64Zm-40,72a31.99971,31.99971,0,0,0-32-32H88a32,32,0,0,0-32,32v8a32.00034,32.00034,0,0,0,32,32h80a32,32,0,0,0,32-32Z"/>
+</svg>
