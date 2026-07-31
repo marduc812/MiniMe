@@ -27,11 +27,19 @@ class TypingService: ObservableObject {
 
     @Published var countdown: Int? = nil
 
+    /// Whether Accessibility permission is granted, without prompting.
+    ///
+    /// For callers that have a working fallback and so should stay quiet about
+    /// the permission — see `PasteService.paste(into:)`.
+    var isAccessibilityTrusted: Bool {
+        AXIsProcessTrusted()
+    }
+
     /// Returns true if Accessibility permission is granted. If not, shows a prompt
     /// directing the user to System Settings and returns false.
     @discardableResult
     func ensureAccessibilityPermission() -> Bool {
-        guard AXIsProcessTrusted() else {
+        guard isAccessibilityTrusted else {
             DispatchQueue.main.async {
                 let alert = NSAlert()
                 alert.messageText = "Accessibility Permission Required"

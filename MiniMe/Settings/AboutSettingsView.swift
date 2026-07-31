@@ -7,6 +7,7 @@ import SwiftUI
 
 struct AboutSettingsView: View {
     @ObservedObject var updateManager: UpdateManager
+    @ObservedObject var onboarding: OnboardingManager
 
     @State private var iconRotation: Double = 0
     @State private var showUpToDate = false
@@ -150,6 +151,25 @@ struct AboutSettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(updateManager.isChecking)
+
+                Button {
+                    onboarding.restartWizard()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 12))
+                        Text("Run Setup Again")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(.white.opacity(0.15), lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
             }
 
             Spacer()

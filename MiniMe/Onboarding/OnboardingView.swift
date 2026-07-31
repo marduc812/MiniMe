@@ -4,87 +4,36 @@
 //
 
 import SwiftUI
-import ScreenCaptureKit
 
+/// The setup window: a slide deck on first run, or a single tool's slide when a
+/// permission has gone missing during normal use.
 struct OnboardingView: View {
-    @ObservedObject var onboardingManager: OnboardingManager
-    @State private var currentStep = 0
+    @ObservedObject var onboarding: OnboardingManager
+    @ObservedObject var settings: SettingsManager
+
+    private var deck: OnboardingDeck { onboarding.deck }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            VStack(spacing: 10) {
-                Text("κ")
-                    .font(.system(size: 72, weight: .light))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.accentColor, .accentColor.opacity(0.7)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                Text("Welcome to MiniMe")
-                    .font(.system(size: 22, weight: .semibold))
-                Text("Let's set up the required permissions")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+            if deck.isWizard {
+                dots.padding(.top, 18)
             }
-            .padding(.top, 44)
-            .padding(.bottom, 32)
 
-            Divider()
-                .opacity(0.5)
+            OnboardingSlideView(
+                slide: deck.current,
+                onboarding: onboarding,
+                settings: settings
+            )
+            .id(deck.current.id)
+            .transition(.opacity)
+
+            Divider().opacity(0.5).padding(.horizontal, 24)
+
+            footer
                 .padding(.horizontal, 24)
-
-            // Permission steps
-            VStack(spacing: 16) {
-                PermissionRow(
-                    title: "Screen Recording",
-                    description: "Required to capture screen content for OCR",
-                    isGranted: onboardingManager.hasScreenRecordingPermission,
-                    action: { onboardingManager.requestScreenRecordingPermission() }
-                )
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 28)
-
-            Spacer()
-
-            Divider()
-                .opacity(0.5)
-                .padding(.horizontal, 24)
-
-            // Footer
-            VStack(spacing: 14) {
-                if onboardingManager.allPermissionsGranted {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("All permissions granted!")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.green)
-                    }
-                } else {
-                    Text("Grant permissions to continue")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                }
-
-                Button(action: {
-                    onboardingManager.completeOnboarding()
-                }) {
-                    Text(onboardingManager.allPermissionsGranted ? "Get Started" : "Skip for Now")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .tint(onboardingManager.allPermissionsGranted ? .accentColor : .secondary)
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 24)
+                .padding(.vertical, 18)
         }
-        .frame(width: 420, height: 500)
+        .frame(width: 460, height: 580)
         .background {
             ZStack {
                 VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
@@ -92,52 +41,51 @@ struct OnboardingView: View {
             }
         }
     }
-}
 
-struct PermissionRow: View {
-    let title: String
-    let description: String
-    let isGranted: Bool
-    let action: () -> Void
+    // MARK: - Progress
 
-    var body: some View {
-        HStack(spacing: 14) {
-            // Status icon
-            ZStack {
+    private var dots: some View {
+        HStack(spacing: 7) {
+            ForEach(Array(deck.slides.enumerated()), id: \.element.id) { position, _ in
                 Circle()
-                    .fill(isGranted ? Color.green.opacity(0.12) : Color.orange.opacity(0.12))
-                    .frame(width: 44, height: 44)
-                Image(systemName: isGranted ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(isGranted ? .green : .orange)
-            }
-
-            // Text
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                Text(description)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            // Action button
-            if !isGranted {
-                Button("Grant") {
-                    action()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                    .fill(position == deck.index ? Color.accentColor : Color.secondary.opacity(0.3))
+                    .frame(width: 6, height: 6)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.white.opacity(0.1), lineWidth: 0.5)
-        )
+    }
+
+    // MARK: - Footer
+
+    @ViewBuilder
+    private var footer: some View {
+        if deck.isWizard {
+            HStack {
+                Button("Back") {
+                    withAnimation(.easeInOut(duration: 0.18)) { onboarding.goBack() }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(!deck.canGoBack)
+
+                Spacer()
+
+                Button(deck.isOnLastSlide ? "Done" : "Next") {
+                    if deck.isOnLastSlide {
+                        onboarding.finish()
+                    } else {
+                        withAnimation(.easeInOut(duration: 0.18)) { onboarding.advance() }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .keyboardShortcut(.defaultAction)
+            }
+        } else {
+            Button("Done") { onboarding.finish() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .keyboardShortcut(.defaultAction)
+                .frame(maxWidth: .infinity)
+        }
     }
 }

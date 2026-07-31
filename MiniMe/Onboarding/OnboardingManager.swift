@@ -4,88 +4,116 @@
 //
 
 import SwiftUI
-import ScreenCaptureKit
 
+/// Owns the setup flow: which slide is showing, whether the window is up, and
+/// the polling that notices a permission being granted in System Settings.
+///
+/// The slide sequence itself lives in `OnboardingDeck`; this type is the part
+/// with side effects.
 @MainActor
-class OnboardingManager: ObservableObject {
-    @Published var hasScreenRecordingPermission = false
-    @Published var showOnboarding = false
+final class OnboardingManager: ObservableObject {
+    @Published private(set) var deck = OnboardingDeck()
+    @Published var isPresented = false
 
-    private var permissionCheckTimer: Timer?
-    private let hasCompletedOnboardingKey = "hasCompletedOnboarding"
+    /// Bumped whenever polling notices a permission change, so slides observing
+    /// this object re-read `OnboardingPermission.isGranted`.
+    @Published private(set) var permissionRevision = 0
 
-    var allPermissionsGranted: Bool {
-        hasScreenRecordingPermission
+    private let defaults: UserDefaults
+    private var permissionTimer: Timer?
+
+    private let completedKey = "hasCompletedOnboarding"
+    private let clipboardPromptDismissedKey = "clipboardAccessibilityPromptDismissed"
+
+    /// Injectable so tests can run against a scratch domain instead of the
+    /// user's real preferences.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
     }
 
-    init() {
-        checkAllPermissions()
+    deinit {
+        permissionTimer?.invalidate()
     }
 
-    private func updateOnboardingVisibility() {
-        let hasCompleted = UserDefaults.standard.bool(forKey: hasCompletedOnboardingKey)
-        // Skip onboarding if all permissions are already granted
-        if allPermissionsGranted {
-            showOnboarding = false
-        } else {
-            // Show onboarding if never completed or permissions are missing
-            showOnboarding = !hasCompleted
-        }
+    // MARK: - Presentation
+
+    var shouldPresentOnLaunch: Bool {
+        !defaults.bool(forKey: completedKey)
     }
 
-    func checkAllPermissions() {
-        checkScreenRecordingPermission()
+    /// Shows the full wizard from the beginning.
+    func restartWizard() {
+        deck = OnboardingDeck()
+        isPresented = true
+        startPollingIfNeeded()
     }
 
-    func checkScreenRecordingPermission() {
-        // Check screen recording permission by trying to get shareable content
-        Task {
-            do {
-                _ = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-                await MainActor.run {
-                    self.hasScreenRecordingPermission = true
-                    self.updateOnboardingVisibility()
-                }
-            } catch {
-                await MainActor.run {
-                    self.hasScreenRecordingPermission = false
-                    self.updateOnboardingVisibility()
-                }
+    /// Shows one tool's slide on its own — the path taken when a permission is
+    /// found missing during normal use. Deliberately does not clear the
+    /// completion flag: fixing a revoked permission is not first-run setup.
+    func presentSingle(_ tool: Tool) {
+        deck = OnboardingDeck(singleTool: tool)
+        isPresented = true
+        startPollingIfNeeded()
+    }
+
+    /// Closes the flow and records it as done, wherever the user had got to.
+    /// Every switch has already written through `SettingsManager`, so there is
+    /// no pending state to commit or discard here.
+    func finish() {
+        defaults.set(true, forKey: completedKey)
+        stopPolling()
+        isPresented = false
+    }
+
+    // MARK: - Navigation
+
+    func advance() { deck.advance() }
+    func goBack() { deck.goBack() }
+
+    // MARK: - The optional Clipboard prompt
+
+    var isClipboardPromptDismissed: Bool {
+        defaults.bool(forKey: clipboardPromptDismissedKey)
+    }
+
+    /// "Not now" on the Clipboard slide's Accessibility row. Answers the
+    /// question for good — a later "Run Setup Again…" does not re-ask it.
+    func dismissClipboardPrompt() {
+        objectWillChange.send()
+        defaults.set(true, forKey: clipboardPromptDismissedKey)
+    }
+
+    // MARK: - Permission polling
+
+    /// Permission grants happen in System Settings, out of the app's sight, and
+    /// neither check has a change notification — so while the window is open and
+    /// something is still missing, poll for it.
+    private func startPollingIfNeeded() {
+        stopPolling()
+        guard hasOutstandingPermission else { return }
+
+        permissionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.permissionRevision += 1
+                if !self.hasOutstandingPermission { self.stopPolling() }
             }
         }
     }
 
-    func requestScreenRecordingPermission() {
-        // Opening the screen recording preference pane
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-            NSWorkspace.shared.open(url)
-        }
-        startPermissionPolling()
+    private var hasOutstandingPermission: Bool {
+        OnboardingPermission.allCases.contains { !$0.isGranted }
     }
 
-    private func startPermissionPolling() {
-        permissionCheckTimer?.invalidate()
-        permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkAllPermissions()
-            }
-        }
+    func stopPolling() {
+        permissionTimer?.invalidate()
+        permissionTimer = nil
     }
 
-    func stopPermissionPolling() {
-        permissionCheckTimer?.invalidate()
-        permissionCheckTimer = nil
-    }
-
-    func completeOnboarding() {
-        UserDefaults.standard.set(true, forKey: hasCompletedOnboardingKey)
-        stopPermissionPolling()
-        showOnboarding = false
-    }
-
-    func resetOnboarding() {
-        UserDefaults.standard.removeObject(forKey: hasCompletedOnboardingKey)
-        checkAllPermissions()
-        showOnboarding = true
+    /// Called when a Grant button sends the user to System Settings, so the app
+    /// starts watching for them coming back having granted it.
+    func beginWatchingForPermissionChange() {
+        startPollingIfNeeded()
     }
 }

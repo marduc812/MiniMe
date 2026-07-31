@@ -70,7 +70,10 @@ final class PasteService {
     /// the content is already on the clipboard, and firing ⌘V blindly into whatever
     /// is frontmost would be worse than letting the user paste it themselves.
     func paste(into app: NSRunningApplication?) {
-        guard TypingService.shared.ensureAccessibilityPermission() else { return }
+        // Checked without prompting: the permission is optional for the
+        // clipboard, and a modal on every pick would badger a user who has
+        // deliberately chosen to paste manually.
+        guard TypingService.shared.isAccessibilityTrusted else { return }
         guard let app else { return }
 
         // The deployment target is macOS 14.6, so the no-argument activate() is

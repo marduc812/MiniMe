@@ -4,6 +4,9 @@ Notable changes to MiniMe, newest first.
 
 ## 1.0.12
 
+- Add a first-run setup deck: a slide per tool with an animation of it in action and a switch.
+- Ask for each permission on the slide of the tool that needs it, not all up front.
+- Stop prompting for Accessibility on every clipboard paste—the clipboard works fine without it.
 - Stop re-deriving clipboard rows on hover—cache classifications, thumbnails, and app icons.
 - Give the About icon eyes that follow the cursor.
 - Fill the selected Settings tab and drop sidebar icon tiles.

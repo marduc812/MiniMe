@@ -88,6 +88,7 @@ struct MiniMeApp: App {
                 hotkeyManager: hotkeyManager,
                 updateManager: updateManager,
                 clipboardStore: clipboardStore,
+                onboarding: onboardingManager,
                 showClipboard: { showClipboardPicker() }
             )
         } label: {
@@ -141,13 +142,15 @@ struct MiniMeApp: App {
                     showPopupMenu()
                 }
                 // Show onboarding if needed
-                if onboardingManager.showOnboarding {
-                    showOnboardingWindow()
+                if onboardingManager.shouldPresentOnLaunch {
+                    onboardingManager.restartWizard()
                 }
             }
         }
-        .onChange(of: onboardingManager.showOnboarding) { _, showOnboarding in
-            if !showOnboarding {
+        .onChange(of: onboardingManager.isPresented) { _, isPresented in
+            if isPresented {
+                showOnboardingWindow()
+            } else {
                 closeOnboardingWindow()
                 // Restart hotkey monitoring after permissions are granted
                 hotkeyManager.checkAccessibilityPermission()
@@ -156,28 +159,36 @@ struct MiniMeApp: App {
         }
         .onChange(of: screenCapture.needsPermission) { _, needsPermission in
             if needsPermission {
-                // Reset the flag and show onboarding
+                // Show only the Capture slide. Replaying the whole wizard would
+                // make the user click through five tools to fix one permission.
                 screenCapture.needsPermission = false
-                onboardingManager.resetOnboarding()
-                showOnboardingWindow()
+                onboardingManager.presentSingle(.capture)
             }
         }
     }
 
     @State private var onboardingWindow: NSWindow?
+    @State private var onboardingWindowDelegate = OnboardingWindowDelegate()
 
     private func showOnboardingWindow() {
         if onboardingWindow != nil { return }
 
-        let onboardingView = OnboardingView(onboardingManager: onboardingManager)
+        let onboardingView = OnboardingView(
+            onboarding: onboardingManager,
+            settings: settingsManager
+        )
         let hostingController = NSHostingController(rootView: onboardingView)
 
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Welcome to MiniMe"
         window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 420, height: 500))
+        window.setContentSize(NSSize(width: 460, height: 580))
         window.center()
         window.isReleasedWhenClosed = false
+        // Closing the window is a completion, not a cancellation — every switch
+        // has already been written through, so there is nothing to discard.
+        window.delegate = onboardingWindowDelegate
+        onboardingWindowDelegate.onClose = { onboardingManager.finish() }
 
         self.onboardingWindow = window
 
@@ -186,6 +197,10 @@ struct MiniMeApp: App {
     }
 
     private func closeOnboardingWindow() {
+        // Detach first: this path is already the result of finishing, and
+        // letting the delegate fire again would loop back through it.
+        onboardingWindowDelegate.onClose = nil
+        onboardingWindow?.delegate = nil
         onboardingWindow?.close()
         onboardingWindow = nil
     }
@@ -202,7 +217,8 @@ struct MiniMeApp: App {
             self.settingsManager.showSettingsWindow(
                 hotkeyManager: self.hotkeyManager,
                 updateManager: self.updateManager,
-                clipboardStore: self.clipboardStore
+                clipboardStore: self.clipboardStore,
+                onboarding: self.onboardingManager
             )
         }
         appDelegate.onClipboard = {
@@ -258,7 +274,8 @@ struct MiniMeApp: App {
             settingsManager.showSettingsWindow(
                 hotkeyManager: hotkeyManager,
                 updateManager: updateManager,
-                clipboardStore: clipboardStore
+                clipboardStore: clipboardStore,
+                    onboarding: onboardingManager
             )
         }
     }
@@ -346,6 +363,7 @@ struct MenuContentView: View {
     @ObservedObject var hotkeyManager: HotkeyManager
     @ObservedObject var updateManager: UpdateManager
     @ObservedObject var clipboardStore: ClipboardStore
+    @ObservedObject var onboarding: OnboardingManager
     let showClipboard: () -> Void
     @ObservedObject var mouseMover = MouseMoverManager.shared
 
@@ -457,7 +475,8 @@ struct MenuContentView: View {
                     settingsManager.showSettingsWindow(
                         hotkeyManager: hotkeyManager,
                         updateManager: updateManager,
-                        clipboardStore: clipboardStore
+                        clipboardStore: clipboardStore,
+                        onboarding: onboarding
                     )
                 }
             } label: {

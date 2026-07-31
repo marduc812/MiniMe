@@ -35,6 +35,7 @@ struct SettingsView: View {
     @ObservedObject var hotkeyManager: HotkeyManager
     @ObservedObject var updateManager: UpdateManager
     @ObservedObject var clipboardStore: ClipboardStore
+    @ObservedObject var onboarding: OnboardingManager
     @State private var selectedTab = "general"
 
     private static let tabGroups: [SettingsTabGroup] = [
@@ -180,7 +181,7 @@ struct SettingsView: View {
                 case "shortcuts":
                     ShortcutsSettingsView(settings: settings)
                 case "about":
-                    AboutSettingsView(updateManager: updateManager)
+                    AboutSettingsView(updateManager: updateManager, onboarding: onboarding)
                 default:
                     GeneralSettingsView(settings: settings)
                 }

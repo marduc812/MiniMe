@@ -244,7 +244,8 @@ class SettingsManager: ObservableObject {
     func showSettingsWindow(
         hotkeyManager: HotkeyManager,
         updateManager: UpdateManager,
-        clipboardStore: ClipboardStore
+        clipboardStore: ClipboardStore,
+        onboarding: OnboardingManager
     ) {
         if let existingWindow = settingsWindow, existingWindow.isVisible {
             existingWindow.makeKeyAndOrderFront(nil)
@@ -256,7 +257,8 @@ class SettingsManager: ObservableObject {
             settings: self,
             hotkeyManager: hotkeyManager,
             updateManager: updateManager,
-            clipboardStore: clipboardStore
+            clipboardStore: clipboardStore,
+            onboarding: onboarding
         )
         let hostingController = NSHostingController(rootView: settingsView)
 

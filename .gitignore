@@ -61,3 +61,5 @@ MiniMeTests/Fixtures/
 
 # Superpowers working docs (plans/specs) stay local
 docs/superpowers/
+
+.superpowers/
