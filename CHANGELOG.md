@@ -4,16 +4,60 @@ Notable changes to MiniMe, newest first.
 
 ## 1.0.12
 
-- Made the clipboard picker smooth to hover with a full history. Moving the
-  mouse down the list redrew every visible row, and each row re-ran text
-  classification (`NSDataDetector` + a JSON parse, ~0.7 ms), re-decoded its
-  thumbnail from disk (~0.9 ms), and re-filtered the whole history to work out
-  the highlight. With 200 entries that was 10–15 ms of main-thread work per
-  mouse move — more than a frame.
-  - Cache text classification per entry (`ClipboardTextKindCache`): a 200-row
-    pass went from 146 ms to 0.1 ms.
-  - Cache decoded row thumbnails in `ClipboardStore`.
-  - Filter the entry list once per redraw instead of once per row.
-  - Make `ClipboardRow` `Equatable`, so a hover redraws the two rows that
-    changed rather than all of them.
-  - Cache source-app icon lookups, which hit LaunchServices on every hover.
+- Stop re-deriving clipboard rows on hover—cache classifications, thumbnails, and app icons.
+- Give the About icon eyes that follow the cursor.
+- Fill the selected Settings tab and drop sidebar icon tiles.
+- Make the clipboard preview follow the row you point at.
+- Restyle the Settings sidebar and unify the detail pane background.
+- Make the Scheduler text box multiline and the interval typeable.
+- Icon clipboard text by what it is, and linkify previews.
+- Move Prevent Sleep off switch into its submenu.
+- Redesign Settings sidebar with clipboard detail view.
+- Add per-tool on/off switches in Settings.
+- Collapse capture history into the clipboard manager.
+- Measure clipboard image previews in pixels, not points.
+- Wire the clipboard manager into hotkeys, settings and the menu bar.
+- Add option-C clipboard shortcut default.
+- Add PasteService for pasteboard writes and synthesized paste.
+- Fix PasteService activation before synthesizing paste.
+- Add ClipboardMonitor with content classification and sensitive-type filtering.
+- Check for updates once a day while running and post notifications.
+- Add "Check for updates automatically" to General settings, on by default.
+
+## 1.0.7
+
+- Fix line-grouping order and mixed-height bugs, add column detection.
+- Skip redundant second OCR pass to improve performance.
+- Improve OCR text parsing with adaptive upscaling and language honoring.
+
+## 1.0.6
+
+- Show an hourglass menu bar icon while a scheduled action is pending.
+- Show a moving-cursor menu bar icon while the mouse mover is armed.
+- Improve OCR accuracy and add testable engine with regression corpus.
+- Add mouse mover, toggle shortcut, and clean up scheduler UI.
+- Add scheduled action feature with delayed and repeating type support.
+
+## 1.0.3
+
+- Fixed bug with sleep prevention and Citrix compatibility.
+
+## 1.0.2
+
+- Updated settings colors.
+- Add option to check for updates automatically.
+- Add option to type selected text.
+
+## 1.0.1
+
+- Change cursor during screenshot to provide visual feedback.
+- Show where each screenshot came from in the history.
+- Preview the selected history item.
+- Add option to hide the icon from the menu bar.
+- Show error message when screen recording permission is missing.
+- Shorter retention time for history display.
+- Fix bug with shortcut key registration.
+
+## Beta
+
+- Initial release with capture history and search functionality.

@@ -12,7 +12,7 @@ extension Notification.Name {
     static let appShouldShowMenu = Notification.Name("appShouldShowMenu")
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var onCapture: (() -> Void)?
     var onSettings: (() -> Void)?
     var onClipboard: (() -> Void)?
@@ -25,6 +25,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = self
         NSUpdateDynamicServices()
+        UNUserNotificationCenter.current().delegate = self
+    }
+
+    /// Without this, macOS swallows banners whenever MiniMe is the frontmost
+    /// app — which it is while Settings is open.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+
+    /// Clicking an update banner opens its release page. Notifications without
+    /// a release URL — the capture banners — are left alone.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if let urlString = response.notification.request.content
+            .userInfo[UpdateManager.releaseURLUserInfoKey] as? String,
+           let url = URL(string: urlString) {
+            NSWorkspace.shared.open(url)
+        }
+        completionHandler()
     }
 
     @objc func menuCapture() { onCapture?() }
@@ -106,7 +132,7 @@ struct MiniMeApp: App {
                 setupHotkeys()
                 setupAppDelegate()
                 startClipboardMonitor()
-                Task { await updateManager.checkForUpdatesIfNeeded() }
+                updateManager.startPeriodicChecks()
                 NotificationCenter.default.addObserver(
                     forName: .appShouldShowMenu,
                     object: nil,

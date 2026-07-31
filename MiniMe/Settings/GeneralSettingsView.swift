@@ -34,6 +34,14 @@ struct GeneralSettingsView: View {
                 SettingsRow(icon: "arrow.up.circle.fill", tint: tint) {
                     Toggle("Launch at login", isOn: $settings.launchAtLogin)
                 }
+                SettingsRow(icon: "arrow.triangle.2.circlepath", tint: tint) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Toggle("Check for updates automatically", isOn: $settings.automaticUpdateChecks)
+                        Text("Asks GitHub once a day whether a newer release exists, and notifies you if there is one.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 SettingsRow(icon: "menubar.rectangle", tint: tint) {
                     VStack(alignment: .leading, spacing: 2) {
                         Toggle("Show menu bar icon", isOn: $showMenuBarIcon)

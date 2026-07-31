@@ -34,6 +34,7 @@ enum SleepDuration: String, CaseIterable, Identifiable {
 @MainActor
 class SettingsManager: ObservableObject {
     @AppStorage("playSound") var playSound = true
+    @AppStorage("automaticUpdateChecks") var automaticUpdateChecks = true
     @AppStorage("recognitionLanguage") var recognitionLanguage = "automatic"
     @AppStorage("lineAwareOCR") var lineAwareOCR = true
     @AppStorage("ocrAccuracy") var ocrAccuracy = "accurate"
