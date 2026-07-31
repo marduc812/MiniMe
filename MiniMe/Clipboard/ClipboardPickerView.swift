@@ -31,8 +31,11 @@ struct ClipboardPickerView: View {
     /// the reason to leave the list is usually to click Copy or Delete for the
     /// entry being previewed, and a preview that snapped back on the way there
     /// would take those buttons with it. Keyboard navigation clears it.
-    private var previewEntry: ClipboardEntry? {
-        let visible = filteredEntries
+    ///
+    /// Takes the visible entries rather than filtering again: it is consulted
+    /// once per row to decide the highlight, and re-filtering the whole history
+    /// each time made hovering quadratic in the size of the list.
+    private func previewEntry(in visible: [ClipboardEntry]) -> ClipboardEntry? {
         if let hoveredID, let entry = visible.first(where: { $0.id == hoveredID }) {
             return entry
         }
@@ -43,6 +46,11 @@ struct ClipboardPickerView: View {
     }
 
     var body: some View {
+        // Filtered once per pass and handed down, rather than recomputed by
+        // every section and every row that needs it.
+        let visible = filteredEntries
+        let previewed = previewEntry(in: visible)
+
         VStack(spacing: 0) {
             searchBar
 
@@ -50,10 +58,10 @@ struct ClipboardPickerView: View {
 
             if !isEnabled {
                 disabledState
-            } else if filteredEntries.isEmpty {
+            } else if visible.isEmpty {
                 emptyState
             } else {
-                splitContent
+                splitContent(visible: visible, previewed: previewed)
             }
 
             if !store.entries.isEmpty {
@@ -128,15 +136,15 @@ struct ClipboardPickerView: View {
         .padding(.vertical, 12)
     }
 
-    private var splitContent: some View {
+    private func splitContent(visible: [ClipboardEntry], previewed: ClipboardEntry?) -> some View {
         HStack(spacing: 0) {
-            list
+            list(visible: visible, activeID: previewed?.id)
                 .frame(width: Self.listWidth)
 
             Divider().opacity(0.5)
 
             ClipboardDetailView(
-                entry: previewEntry,
+                entry: previewed,
                 store: store,
                 onCopy: { onSelect($0) },
                 onDelete: { delete($0) }
@@ -144,11 +152,11 @@ struct ClipboardPickerView: View {
         }
     }
 
-    private var list: some View {
+    private func list(visible: [ClipboardEntry], activeID: UUID?) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 1) {
-                    ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
+                    ForEach(Array(visible.enumerated()), id: \.element.id) { index, entry in
                         ClipboardRow(
                             entry: entry,
                             store: store,
@@ -156,13 +164,16 @@ struct ClipboardPickerView: View {
                             // The active row is whichever one the detail pane is
                             // showing, so the highlight and the preview can never
                             // disagree about what you are looking at.
-                            isSelected: entry.id == previewEntry?.id,
+                            isSelected: entry.id == activeID,
                             onSelect: { onSelect(entry) },
                             onDelete: { delete(entry) },
                             onHoverChange: { hovering in
                                 if hovering { hoveredID = entry.id }
                             }
                         )
+                        // Only the row losing the highlight and the row gaining
+                        // it need to redraw when the hover moves.
+                        .equatable()
                         .id(entry.id)
                     }
                 }
@@ -245,7 +256,7 @@ struct ClipboardPickerView: View {
     private func delete(_ entry: ClipboardEntry) {
         let visible = filteredEntries
         // Move the highlight to a neighbour before the row disappears.
-        if previewEntry?.id == entry.id,
+        if previewEntry(in: visible)?.id == entry.id,
            let index = visible.firstIndex(where: { $0.id == entry.id }) {
             let remaining = visible.filter { $0.id != entry.id }
             selectedID = remaining.indices.contains(index) ? remaining[index].id : remaining.last?.id
@@ -290,7 +301,7 @@ struct ClipboardPickerView: View {
             return true
         case 36, 76: // return, enter
             // Paste what the detail pane is showing, hovered or keyboard-selected.
-            if let entry = previewEntry {
+            if let entry = previewEntry(in: visible) {
                 onSelect(entry)
             }
             return true
@@ -306,7 +317,8 @@ struct ClipboardPickerView: View {
         guard !visible.isEmpty else { return }
         // Step from the row on screen, which may be a hovered one, so the arrow
         // keys never jump back to where the keyboard last was.
-        let current = previewEntry.flatMap { entry in visible.firstIndex { $0.id == entry.id } } ?? -1
+        let current = previewEntry(in: visible)
+            .flatMap { entry in visible.firstIndex { $0.id == entry.id } } ?? -1
         let next = min(max(current + offset, 0), visible.count - 1)
         selectedID = visible[next].id
         // Keyboard navigation takes over the preview from any stale hover.

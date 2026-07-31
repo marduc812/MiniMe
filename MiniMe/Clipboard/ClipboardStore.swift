@@ -18,6 +18,11 @@ final class ClipboardStore: ObservableObject {
     let blobsDirectory: URL
     private let metadataURL: URL
 
+    /// Decoded row thumbnails, keyed by blob file name. `ClipboardRow` asks for
+    /// its thumbnail every time it draws and decoding a 240pt PNG costs ~0.9 ms,
+    /// so without this every hover re-decodes every visible thumbnail.
+    private let thumbnailCache = NSCache<NSString, NSImage>()
+
     var maxEntries: Int {
         didSet {
             guard maxEntries != oldValue else { return }
@@ -30,6 +35,9 @@ final class ClipboardStore: ObservableObject {
         self.blobsDirectory = directory.appendingPathComponent("ClipboardBlobs", isDirectory: true)
         self.metadataURL = directory.appendingPathComponent("clipboard.json")
         self.maxEntries = maxEntries
+        // One thumbnail per entry is the ceiling; NSCache also sheds under
+        // memory pressure, so this only bounds a pathological growth case.
+        self.thumbnailCache.countLimit = 200
 
         // Creating the blobs directory with intermediates also creates `directory`.
         try? FileManager.default.createDirectory(at: blobsDirectory, withIntermediateDirectories: true)
@@ -48,6 +56,15 @@ final class ClipboardStore: ObservableObject {
 
     func blobURL(named fileName: String) -> URL {
         blobsDirectory.appendingPathComponent(fileName)
+    }
+
+    /// The decoded thumbnail for `fileName`, read from disk once and kept.
+    func thumbnail(named fileName: String) -> NSImage? {
+        let key = fileName as NSString
+        if let cached = thumbnailCache.object(forKey: key) { return cached }
+        guard let image = NSImage(contentsOf: blobURL(named: fileName)) else { return nil }
+        thumbnailCache.setObject(image, forKey: key)
+        return image
     }
 
     // MARK: - Mutation
@@ -123,6 +140,7 @@ final class ClipboardStore: ObservableObject {
     private func deleteBlobs(for entry: ClipboardEntry) {
         for name in blobNames(for: entry) {
             try? FileManager.default.removeItem(at: blobURL(named: name))
+            thumbnailCache.removeObject(forKey: name as NSString)
         }
     }
 
