@@ -2,8 +2,9 @@
 
 Notable changes to MiniMe, newest first.
 
-## Unreleased
+## 1.0.13
 
+- Remember Prevent Sleep across restarts—a timed session resumes with only the time it had left, and one that ran out while MiniMe was closed stays off.
 - Quit at launch if MiniMe is already running—two copies fought over the same hotkeys, and the one without the Accessibility grant answered them.
 - Name the tool that needs Accessibility in the permission alert instead of always saying "simulate typing".
 
