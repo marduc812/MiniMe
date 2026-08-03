@@ -85,4 +85,106 @@ struct SettingsManagerToolTests {
         #expect(settings.activeSleepDuration != nil)
         settings.disablePreventSleep()
     }
+
+    // MARK: - Prevent Sleep persistence
+
+    @Test func aFreshInstallHasNoSleepSessionToRestore() {
+        let settings = SettingsManager(defaults: scratchDefaults())
+
+        #expect(settings.activeSleepDuration == nil)
+    }
+
+    @Test func anInfiniteSessionSurvivesARelaunch() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.infinite)
+        settings.releaseSleepAssertion()
+
+        let relaunched = SettingsManager(defaults: defaults)
+
+        #expect(relaunched.activeSleepDuration == .infinite)
+        relaunched.disablePreventSleep()
+    }
+
+    @Test func aFiniteSessionSurvivesARelaunch() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.oneHour)
+        settings.releaseSleepAssertion()
+
+        let relaunched = SettingsManager(defaults: defaults)
+
+        #expect(relaunched.activeSleepDuration == .oneHour)
+        relaunched.disablePreventSleep()
+    }
+
+    /// Turning it off has to stick too, otherwise the next launch would wake
+    /// the Mac back up on its own.
+    @Test func switchingSleepOffDoesNotComeBackAfterARelaunch() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.infinite)
+        settings.disablePreventSleep()
+
+        let relaunched = SettingsManager(defaults: defaults)
+
+        #expect(relaunched.activeSleepDuration == nil)
+    }
+
+    @Test func aSessionIsNotRestoredWhenTheToolIsSwitchedOff() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.infinite)
+        settings.releaseSleepAssertion()
+        Tool.setEnabled(false, for: .preventSleep, in: defaults)
+
+        let relaunched = SettingsManager(defaults: defaults)
+
+        #expect(relaunched.activeSleepDuration == nil)
+    }
+
+    // MARK: - Prevent Sleep session arithmetic
+
+    @Test func aFiniteSessionResumesWithOnlyTheTimeItHasLeft() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.oneHour)
+        settings.releaseSleepAssertion()
+
+        let session = SettingsManager.savedSleepSession(
+            in: defaults,
+            now: Date().addingTimeInterval(2400) // 40 minutes later
+        )
+
+        #expect(session?.duration == .oneHour)
+        #expect(abs((session?.remaining ?? 0) - 1200) < 5)
+    }
+
+    @Test func aFiniteSessionThatRanOutWhileClosedIsNotRestored() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.tenMinutes)
+        settings.releaseSleepAssertion()
+
+        let session = SettingsManager.savedSleepSession(
+            in: defaults,
+            now: Date().addingTimeInterval(3600)
+        )
+
+        #expect(session == nil)
+    }
+
+    @Test func anInfiniteSessionNeverRunsOut() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.infinite)
+        settings.releaseSleepAssertion()
+
+        let session = SettingsManager.savedSleepSession(
+            in: defaults,
+            now: Date().addingTimeInterval(86_400 * 30)
+        )
+
+        #expect(session == PreventSleepSession(duration: .infinite, remaining: nil))
+    }
 }

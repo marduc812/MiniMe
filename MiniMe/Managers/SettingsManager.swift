@@ -31,6 +31,14 @@ enum SleepDuration: String, CaseIterable, Identifiable {
     }
 }
 
+/// A Prevent Sleep session as it survives a relaunch. `remaining` is nil for
+/// `.infinite`, which never runs out; a finite session that expired while the
+/// app was closed does not produce a session at all.
+struct PreventSleepSession: Equatable {
+    let duration: SleepDuration
+    let remaining: TimeInterval?
+}
+
 @MainActor
 class SettingsManager: ObservableObject {
     @AppStorage("playSound") var playSound = true
@@ -134,8 +142,22 @@ class SettingsManager: ObservableObject {
     }
 
     func enablePreventSleep(_ duration: SleepDuration) {
+        guard holdSleepAssertion(duration, remaining: duration.seconds) else { return }
+        saveSleepSession(duration, remaining: duration.seconds)
+    }
+
+    func disablePreventSleep() {
+        releaseSleepAssertion()
+        clearSleepSession()
+    }
+
+    /// Takes the IOKit assertion and arms the expiry timer. `remaining` is the
+    /// time left to run, which is shorter than the duration when a session is
+    /// being resumed after a relaunch.
+    @discardableResult
+    private func holdSleepAssertion(_ duration: SleepDuration, remaining: TimeInterval?) -> Bool {
         // Release any existing assertion first
-        disablePreventSleep()
+        releaseSleepAssertion()
 
         let result = IOPMAssertionCreateWithName(
             kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
@@ -143,18 +165,22 @@ class SettingsManager: ObservableObject {
             "MiniMe: Prevent Sleep" as CFString,
             &sleepAssertionID
         )
-        guard result == kIOReturnSuccess else { return }
+        guard result == kIOReturnSuccess else { return false }
 
         activeSleepDuration = duration
 
-        if let seconds = duration.seconds {
-            sleepTimer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) { [weak self] _ in
+        if let remaining {
+            sleepTimer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
                 Task { @MainActor [weak self] in self?.disablePreventSleep() }
             }
         }
+        return true
     }
 
-    func disablePreventSleep() {
+    /// Drops the assertion without touching the stored session — what a quit
+    /// does, since the kernel reclaims the assertion when the process exits.
+    /// Not `private` so tests can stand in for that quit.
+    func releaseSleepAssertion() {
         sleepTimer?.invalidate()
         sleepTimer = nil
         if sleepAssertionID != .zero {
@@ -162,6 +188,53 @@ class SettingsManager: ObservableObject {
             sleepAssertionID = .zero
         }
         activeSleepDuration = nil
+    }
+
+    // MARK: - Prevent Sleep persistence
+
+    private static let sleepDurationKey = "preventSleepDuration"
+    private static let sleepExpiryKey = "preventSleepExpiry"
+
+    /// The session stored by a previous launch, or nil when Prevent Sleep was
+    /// off — or when a finite session ran out while the app was not running.
+    static func savedSleepSession(in defaults: UserDefaults, now: Date = Date()) -> PreventSleepSession? {
+        guard let raw = defaults.string(forKey: sleepDurationKey),
+              let duration = SleepDuration(rawValue: raw) else { return nil }
+
+        guard duration.seconds != nil else {
+            return PreventSleepSession(duration: duration, remaining: nil)
+        }
+
+        let expiry = defaults.double(forKey: sleepExpiryKey)
+        let remaining = expiry - now.timeIntervalSinceReferenceDate
+        guard remaining > 0 else { return nil }
+        return PreventSleepSession(duration: duration, remaining: remaining)
+    }
+
+    private func saveSleepSession(_ duration: SleepDuration, remaining: TimeInterval?) {
+        defaults.set(duration.rawValue, forKey: Self.sleepDurationKey)
+        if let remaining {
+            defaults.set(Date().timeIntervalSinceReferenceDate + remaining, forKey: Self.sleepExpiryKey)
+        } else {
+            defaults.removeObject(forKey: Self.sleepExpiryKey)
+        }
+    }
+
+    private func clearSleepSession() {
+        defaults.removeObject(forKey: Self.sleepDurationKey)
+        defaults.removeObject(forKey: Self.sleepExpiryKey)
+    }
+
+    /// Picks up where the last launch left off. A finite session resumes with
+    /// only the time it had left, so "1 hour" stays one hour of wakefulness
+    /// rather than restarting on every launch.
+    private func restoreSleepSession() {
+        guard enabledTools.contains(.preventSleep) else { return }
+        guard let session = Self.savedSleepSession(in: defaults) else {
+            clearSleepSession()
+            return
+        }
+        holdSleepAssertion(session.duration, remaining: session.remaining)
     }
 
     private var settingsWindow: NSWindow?
@@ -211,6 +284,8 @@ class SettingsManager: ObservableObject {
         } else {
             scheduledCombo = CustomShortcut(keyCode: 36, modifiers: 0) // Return
         }
+
+        restoreSleepSession()
     }
 
     private func saveScheduledCombo() {
