@@ -56,6 +56,33 @@ struct SingleInstanceGuardTests {
         #expect(!SingleInstanceGuard.isTestHost(environment: ["HOME": "/Users/someone"]))
     }
 
+    /// The UI tests launch MiniMe as its own process, which carries none of the
+    /// XCTest environment above — so they hand the exemption over explicitly.
+    /// Without this the guard fired inside the app under test and every UI test
+    /// timed out waiting for a window that had already exited.
+    @Test func theAppUnderUITestIsExemptFromTheGuard() {
+        #expect(SingleInstanceGuard.isUITestRun(
+            arguments: ["/path/to/MiniMe", SingleInstanceGuard.uiTestLaunchArgument]
+        ))
+    }
+
+    @Test func anOrdinaryLaunchIsNotAUITestRun() {
+        #expect(!SingleInstanceGuard.isUITestRun(arguments: []))
+        #expect(!SingleInstanceGuard.isUITestRun(arguments: ["/path/to/MiniMe"]))
+        #expect(!SingleInstanceGuard.isUITestRun(arguments: ["/path/to/MiniMe", "-psn_0_12345"]))
+    }
+
+    /// Pins the literal. `XCUIApplication.miniMe()` spells the same string out
+    /// on the UI test side — a target can't import the app module — so renaming
+    /// it here alone would silently arm the guard against the app under test.
+    ///
+    /// The leading character matters too: `NSArgumentDomain` only picks up
+    /// `-`-prefixed names, so this one can't shadow an `@AppStorage` key.
+    @Test func theUITestFlagIsTheOneTheUITestsPass() {
+        #expect(SingleInstanceGuard.uiTestLaunchArgument == "MINIME_UI_TESTING")
+        #expect(!SingleInstanceGuard.uiTestLaunchArgument.hasPrefix("-"))
+    }
+
     /// More than two copies can pile up over a long Xcode session; the guard
     /// reports every one so the caller can defer to the oldest.
     @Test func everyOtherCopyIsReported() {

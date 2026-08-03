@@ -47,6 +47,25 @@ enum SingleInstanceGuard {
             || environment["XCTestBundlePath"] != nil
     }
 
+    /// Passed by the UI tests so the app under test keeps the guard switched off.
+    ///
+    /// Deliberately not `-`-prefixed: macOS folds `-key value` launch arguments
+    /// into `NSArgumentDomain`, where the name could shadow one of the app's
+    /// `@AppStorage` keys.
+    static let uiTestLaunchArgument = "MINIME_UI_TESTING"
+
+    /// Whether the UI test runner launched this process.
+    ///
+    /// `isTestHost` can't answer this. UI tests drive MiniMe as its own process
+    /// through `XCUIApplication`, which does not carry the XCTest environment a
+    /// unit test host has — so the guard was live inside the app under test, and
+    /// any other copy running on the machine (the installed one, usually) made
+    /// it exit before the runner could see it. Every UI test then waited out its
+    /// timeout.
+    static func isUITestRun(arguments: [String]) -> Bool {
+        arguments.contains(uiTestLaunchArgument)
+    }
+
     /// Exits the process if another MiniMe already holds the menu bar, bringing
     /// that one forward first so the launch still shows the user something.
     ///
@@ -55,6 +74,7 @@ enum SingleInstanceGuard {
     @MainActor
     static func yieldToRunningInstance() {
         guard !isTestHost(environment: ProcessInfo.processInfo.environment) else { return }
+        guard !isUITestRun(arguments: ProcessInfo.processInfo.arguments) else { return }
         guard let bundleID = Bundle.main.bundleIdentifier else { return }
 
         let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)

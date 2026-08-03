@@ -11,7 +11,7 @@ final class SettingsUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
+        app = .miniMe()
         app.launch()
     }
 

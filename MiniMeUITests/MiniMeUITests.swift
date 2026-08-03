@@ -13,7 +13,7 @@ final class MiniMeUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
+        app = .miniMe()
         app.launch()
     }
 
@@ -87,7 +87,7 @@ final class MiniMeUITests: XCTestCase {
     func testLaunchPerformance() throws {
         if #available(macOS 10.15, *) {
             measure(metrics: [XCTApplicationLaunchMetric()]) {
-                XCUIApplication().launch()
+                XCUIApplication.miniMe().launch()
             }
         }
     }

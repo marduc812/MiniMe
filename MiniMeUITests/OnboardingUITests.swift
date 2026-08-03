@@ -19,7 +19,7 @@ final class OnboardingUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
+        app = .miniMe()
         app.launch()
         XCTAssertTrue(app.statusItems.firstMatch.waitForExistence(timeout: 10),
                       "MiniMe's status item never appeared")
