@@ -41,7 +41,7 @@ final class ScheduledActionManager: ObservableObject {
     /// arming if it's missing). A non-positive interval is ignored.
     func arm(text: String, combo: CustomShortcut?, interval: TimeInterval, repeats: Bool) {
         guard interval > 0 else { return }
-        guard TypingService.shared.ensureAccessibilityPermission() else { return }
+        guard TypingService.shared.ensureAccessibilityPermission(for: .scheduledAction) else { return }
 
         disarm()
         self.text = text

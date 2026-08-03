@@ -29,7 +29,7 @@ final class MouseMoverManager: ObservableObject {
     /// if it's missing). Intervals are seconds; `max` is clamped up to `min` if smaller.
     func arm(minInterval: TimeInterval, maxInterval: TimeInterval) {
         guard minInterval > 0 else { return }
-        guard TypingService.shared.ensureAccessibilityPermission() else { return }
+        guard TypingService.shared.ensureAccessibilityPermission(for: .mouseMove) else { return }
 
         disarm()
         center = NSEvent.mouseLocation

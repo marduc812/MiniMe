@@ -2,6 +2,11 @@
 
 Notable changes to MiniMe, newest first.
 
+## Unreleased
+
+- Quit at launch if MiniMe is already running—two copies fought over the same hotkeys, and the one without the Accessibility grant answered them.
+- Name the tool that needs Accessibility in the permission alert instead of always saying "simulate typing".
+
 ## 1.0.12
 
 - Add a first-run setup deck: a slide per tool with an animation of it in action and a switch.

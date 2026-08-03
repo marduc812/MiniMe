@@ -22,6 +22,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         return false
     }
 
+    /// Runs before the scene body registers any hotkey — see `SingleInstanceGuard`
+    /// for why a second copy must not get that far.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        SingleInstanceGuard.yieldToRunningInstance()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = self
         NSUpdateDynamicServices()

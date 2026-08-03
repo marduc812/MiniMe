@@ -8,6 +8,26 @@ import ApplicationServices
 import AVFoundation
 import Combine
 
+/// What the app was about to do when it found Accessibility missing. The alert
+/// names it, so a user who hit the Mouse Mover isn't told MiniMe wants to type.
+enum AccessibilityPurpose: CaseIterable {
+    case typing
+    case mouseMove
+    case scheduledAction
+
+    private var need: String {
+        switch self {
+        case .typing:          return "to type text into other apps"
+        case .mouseMove:       return "to move the mouse pointer"
+        case .scheduledAction: return "to run scheduled actions in other apps"
+        }
+    }
+
+    var informativeText: String {
+        "MiniMe needs Accessibility permission \(need). Please grant it in System Settings → Privacy & Security → Accessibility."
+    }
+}
+
 class TypingService: ObservableObject {
     static let shared = TypingService()
     private init() {}
@@ -36,14 +56,14 @@ class TypingService: ObservableObject {
     }
 
     /// Returns true if Accessibility permission is granted. If not, shows a prompt
-    /// directing the user to System Settings and returns false.
+    /// naming `purpose` and directing the user to System Settings, then returns false.
     @discardableResult
-    func ensureAccessibilityPermission() -> Bool {
+    func ensureAccessibilityPermission(for purpose: AccessibilityPurpose) -> Bool {
         guard isAccessibilityTrusted else {
             DispatchQueue.main.async {
                 let alert = NSAlert()
                 alert.messageText = "Accessibility Permission Required"
-                alert.informativeText = "MiniMe needs Accessibility permission to simulate typing. Please grant it in System Settings → Privacy & Security → Accessibility."
+                alert.informativeText = purpose.informativeText
                 alert.addButton(withTitle: "Open Settings")
                 alert.addButton(withTitle: "Cancel")
                 if alert.runModal() == .alertFirstButtonReturn,
@@ -57,7 +77,7 @@ class TypingService: ObservableObject {
     }
 
     func typeText(_ text: String, closeAction: (() -> Void)? = nil) {
-        guard ensureAccessibilityPermission() else { return }
+        guard ensureAccessibilityPermission(for: .typing) else { return }
 
         closeAction?()
 
@@ -86,7 +106,7 @@ class TypingService: ObservableObject {
     }
 
     func typeFromSelection() {
-        guard ensureAccessibilityPermission() else { return }
+        guard ensureAccessibilityPermission(for: .typing) else { return }
 
         // Save current clipboard, simulate Cmd+C, read selection, restore clipboard
         let previousContents = NSPasteboard.general.string(forType: .string)
