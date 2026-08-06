@@ -18,7 +18,11 @@ import CoreImage.CIFilterBuiltins
 enum PaperTextureRenderer {
     /// Side length of a tile in device pixels. Big enough that the repeat isn't
     /// legible as a pattern, small enough to stay well inside a texture cache.
-    static let tilePixelSize = 512
+    ///
+    /// `nonisolated` because it is the default for `tile(for:scale:pixelSize:)`,
+    /// and a default argument is evaluated wherever the call is written — which
+    /// need not be the main actor.
+    static nonisolated let tilePixelSize = 512
 
     private struct CacheKey: Hashable {
         let texture: PaperTexture

@@ -205,7 +205,9 @@ private struct LinkedTextView: View {
     /// a previous entry's text next to the current entry's metadata.
     @State private var linkified: (source: String, text: AttributedString)?
 
-    private static let maxScanLength = 20_000
+    /// `nonisolated` because `linkify` reads it, and that runs off the main
+    /// actor in a detached task.
+    private static nonisolated let maxScanLength = 20_000
 
     /// Plain text renders immediately; links light up when the scan lands.
     private var displayed: AttributedString {
