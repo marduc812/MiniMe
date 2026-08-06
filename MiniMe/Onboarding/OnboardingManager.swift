@@ -57,11 +57,21 @@ final class OnboardingManager: ObservableObject {
         startPollingIfNeeded()
     }
 
-    /// Closes the flow and records it as done, wherever the user had got to.
-    /// Every switch has already written through `SettingsManager`, so there is
-    /// no pending state to commit or discard here.
+    /// Closes the flow, and records first-run setup as done if that is what was
+    /// on screen. Every switch has already written through `SettingsManager`, so
+    /// there is no pending state to commit or discard here.
+    ///
+    /// Only the wizard counts. `presentSingle` puts up one tool's slide to
+    /// repair a permission, and that slide can be the first thing a fresh
+    /// install ever shows — press the capture hotkey before setup has run and
+    /// the missing Screen Recording grant brings it up on its own. Recording
+    /// *that* as completed setup answered a question the user was never asked:
+    /// the wizard then never appeared, and the only way back to it was
+    /// Settings › About › Run Setup Again.
     func finish() {
-        defaults.set(true, forKey: completedKey)
+        if deck.isWizard {
+            defaults.set(true, forKey: completedKey)
+        }
         stopPolling()
         isPresented = false
     }

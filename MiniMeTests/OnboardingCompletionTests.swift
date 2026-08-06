@@ -91,6 +91,27 @@ struct OnboardingCompletionTests {
         #expect(!manager.deck.isWizard)
     }
 
+    /// A fresh install can be shown a single slide before it has ever been
+    /// shown the wizard: press the capture hotkey on a machine with no Screen
+    /// Recording grant and `presentSingle(.capture)` puts that one slide up.
+    /// Closing it answered a permission question, not the setup question — so
+    /// the wizard is still owed on the next launch.
+    ///
+    /// Regression: `finish()` recorded completion for every deck, so dismissing
+    /// that one slide marked first-run setup done on a machine that had never
+    /// seen it. Setup then never appeared again and had to be dug out of
+    /// Settings › About › Run Setup Again.
+    @Test func singleSlideModeOnAFreshInstallStillOwesTheWizard() {
+        let defaults = scratchDefaults()
+        let manager = OnboardingManager(defaults: defaults)
+        #expect(manager.shouldPresentOnLaunch, "precondition: nothing has run yet")
+
+        manager.presentSingle(.capture)
+        manager.finish()
+
+        #expect(OnboardingManager(defaults: defaults).shouldPresentOnLaunch)
+    }
+
     /// Fixing a revoked permission is not first-run setup, so it must not
     /// resurrect the wizard on the next launch.
     @Test func singleSlideModeDoesNotReopenTheWizardLater() {
