@@ -16,7 +16,30 @@ import SwiftUI
 struct PaperOverlayLayers: View {
     let texture: PaperTexture
 
+    /// How many points across one grain tile should be, or nil for the shipping
+    /// tile.
+    ///
+    /// The shipping tile is 512 device pixels, which repeats often enough across
+    /// a display to read as grain. On a panel a couple of hundred points wide —
+    /// the onboarding mock desktop — one tile covers nearly all of it. Shrinking
+    /// it in points alone is not enough: the image still carries 512 pixels, so
+    /// every repeat is resampled down and the grain lands as hard blocks. Set
+    /// this and the tile is *rendered* smaller instead, keeping one image pixel
+    /// per device pixel and the grain the size the texture asked for.
+    var grainTilePoints: CGFloat? = nil
+
     @Environment(\.displayScale) private var displayScale
+
+    private var grainTile: NSImage {
+        guard let grainTilePoints else {
+            return PaperTextureRenderer.tile(for: texture, scale: displayScale)
+        }
+        return PaperTextureRenderer.tile(
+            for: texture,
+            scale: displayScale,
+            pixelSize: Int((grainTilePoints * displayScale).rounded())
+        )
+    }
 
     var body: some View {
         ZStack {
@@ -28,7 +51,7 @@ struct PaperOverlayLayers: View {
             )
             .opacity(texture.wash.weight)
 
-            Image(nsImage: PaperTextureRenderer.tile(for: texture, scale: displayScale))
+            Image(nsImage: grainTile)
                 .resizable(resizingMode: .tile)
                 .opacity(texture.grain.weight)
         }

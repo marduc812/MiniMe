@@ -23,6 +23,7 @@ enum PaperTextureRenderer {
     private struct CacheKey: Hashable {
         let texture: PaperTexture
         let scale: CGFloat
+        let pixelSize: Int
     }
 
     private static var cache: [CacheKey: NSImage] = [:]
@@ -31,14 +32,24 @@ enum PaperTextureRenderer {
 
     /// The tile for `texture` at a display's `backingScaleFactor`.
     ///
-    /// Keyed by scale as well as texture: the tile is always `tilePixelSize`
-    /// device pixels, sized down in points to match, so grain stays per-pixel
-    /// crisp on Retina instead of being one grain smeared across four pixels.
-    static func tile(for texture: PaperTexture, scale: CGFloat) -> NSImage {
-        let key = CacheKey(texture: texture, scale: scale)
+    /// Keyed by scale as well as texture: the tile is `pixelSize` device pixels,
+    /// sized down in points to match, so grain stays per-pixel crisp on Retina
+    /// instead of being one grain smeared across four pixels.
+    ///
+    /// `pixelSize` is only worth passing where the tile must repeat inside
+    /// something far smaller than a display — see `PaperOverlayLayers`. Drawing
+    /// the full-size tile into a fraction of its own pixel count resamples it on
+    /// every repeat, and the grain lands as hard blocks.
+    static func tile(
+        for texture: PaperTexture,
+        scale: CGFloat,
+        pixelSize: Int = tilePixelSize
+    ) -> NSImage {
+        let pixels = max(pixelSize, 1)
+        let key = CacheKey(texture: texture, scale: scale, pixelSize: pixels)
         if let cached = cache[key] { return cached }
 
-        let rendered = render(texture, scale: scale)
+        let rendered = render(texture, scale: scale, pixelSize: pixels)
         cache[key] = rendered
         return rendered
     }
@@ -51,12 +62,12 @@ enum PaperTextureRenderer {
 
     // MARK: - Rendering
 
-    private static func render(_ texture: PaperTexture, scale: CGFloat) -> NSImage {
-        let side = CGFloat(tilePixelSize)
+    private static func render(_ texture: PaperTexture, scale: CGFloat, pixelSize: Int) -> NSImage {
+        let side = CGFloat(pixelSize)
         let points = NSSize(width: side / max(scale, 1), height: side / max(scale, 1))
 
-        guard let cgImage = noiseImage(texture) else {
-            return blankTile(size: points)
+        guard let cgImage = noiseImage(texture, pixelSize: pixelSize) else {
+            return blankTile(size: points, pixelSize: pixelSize)
         }
 
         let rep = NSBitmapImageRep(cgImage: cgImage)
@@ -70,8 +81,8 @@ enum PaperTextureRenderer {
     /// Noise generated small and blown back up: scaling is what turns per-pixel
     /// static into grains of a chosen size, and Lanczos leaves them with soft
     /// edges rather than the hard squares a nearest-neighbour scale would.
-    private static func noiseImage(_ texture: PaperTexture) -> CGImage? {
-        let side = CGFloat(tilePixelSize)
+    private static func noiseImage(_ texture: PaperTexture, pixelSize: Int) -> CGImage? {
+        let side = CGFloat(pixelSize)
         let coarseness = max(texture.grain.coarseness, 1)
         let sourceSide = max((side / coarseness).rounded(), 1)
 
@@ -101,12 +112,12 @@ enum PaperTextureRenderer {
 
     /// A transparent tile, so a Core Image failure costs the grain layer rather
     /// than leaving the overlay to draw an empty `NSImage` of unknown size.
-    private static func blankTile(size: NSSize) -> NSImage {
+    private static func blankTile(size: NSSize, pixelSize: Int) -> NSImage {
         let image = NSImage(size: size)
         if let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
-            pixelsWide: tilePixelSize,
-            pixelsHigh: tilePixelSize,
+            pixelsWide: pixelSize,
+            pixelsHigh: pixelSize,
             bitsPerSample: 8,
             samplesPerPixel: 4,
             hasAlpha: true,
