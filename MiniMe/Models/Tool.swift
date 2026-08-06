@@ -21,6 +21,7 @@ enum Tool: String, CaseIterable, Identifiable, Sendable {
     case clipboard
     case moveMouse
     case preventSleep
+    case paper
 
     var id: String { rawValue }
 
@@ -31,6 +32,7 @@ enum Tool: String, CaseIterable, Identifiable, Sendable {
         case .clipboard:    return "Clipboard"
         case .moveMouse:    return "Move Mouse"
         case .preventSleep: return "Prevent Sleep"
+        case .paper:        return "Paper"
         }
     }
 
@@ -41,6 +43,7 @@ enum Tool: String, CaseIterable, Identifiable, Sendable {
         case .clipboard:    return "doc.on.clipboard"
         case .moveMouse:    return "cursorarrow.motionlines"
         case .preventSleep: return "moon.zzz"
+        case .paper:        return "camera.filters"
         }
     }
 

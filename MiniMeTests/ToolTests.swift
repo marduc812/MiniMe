@@ -17,8 +17,8 @@ struct ToolTests {
 
     // MARK: - Cases
 
-    @Test func hasExactlyTheFiveToggleableTools() {
-        #expect(Set(Tool.allCases) == [.capture, .typeIt, .clipboard, .moveMouse, .preventSleep])
+    @Test func hasExactlyTheSixToggleableTools() {
+        #expect(Set(Tool.allCases) == [.capture, .typeIt, .clipboard, .moveMouse, .preventSleep, .paper])
     }
 
     @Test func defaultsKeysAreNamespacedAndUnique() {

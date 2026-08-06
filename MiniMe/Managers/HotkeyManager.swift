@@ -47,12 +47,14 @@ class HotkeyManager: ObservableObject {
     var onToggleMouseMove: (@MainActor () -> Void)?
     var onEscape: (@MainActor () -> Void)?
     var onClipboard: (@MainActor () -> Void)?
+    var onTogglePaper: (@MainActor () -> Void)?
 
     private var shortcuts = ShortcutSet(
         capture: .defaultCapture,
         typeIt: .defaultTypeIt,
         moveMouse: .defaultMoveMouse,
-        clipboard: .defaultClipboard
+        clipboard: .defaultClipboard,
+        paper: .defaultPaper
     )
 
     // Signature "KIMO" for main hotkeys
@@ -63,6 +65,7 @@ class HotkeyManager: ObservableObject {
     private static let typeItHotkeyID = EventHotKeyID(signature: mainSignature, id: 4)
     private static let moveMouseHotkeyID = EventHotKeyID(signature: mainSignature, id: 5)
     private static let clipboardHotkeyID = EventHotKeyID(signature: mainSignature, id: 6)
+    private static let paperHotkeyID = EventHotKeyID(signature: mainSignature, id: 7)
 
     private static weak var sharedInstance: HotkeyManager?
 
@@ -137,6 +140,9 @@ class HotkeyManager: ObservableObject {
             case 6:
                 print("[HotkeyManager] Clipboard hotkey triggered")
                 manager.onClipboard?()
+            case 7:
+                print("[HotkeyManager] Paper hotkey triggered")
+                manager.onTogglePaper?()
             default:
                 print("[HotkeyManager] Unknown hotkey id: \(id)")
             }
@@ -160,6 +166,9 @@ class HotkeyManager: ObservableObject {
         }
         if shortcuts.isEnabled(.clipboard) {
             register(shortcuts.clipboard, id: Self.clipboardHotkeyID, label: "clipboard")
+        }
+        if shortcuts.isEnabled(.paper) {
+            register(shortcuts.paper, id: Self.paperHotkeyID, label: "paper")
         }
     }
 

@@ -67,6 +67,17 @@ class SettingsManager: ObservableObject {
     @AppStorage("mouseMoverMinSeconds") var mouseMoverMinSeconds = 5
     @AppStorage("mouseMoverMaxSeconds") var mouseMoverMaxSeconds = 12
 
+    // Paper matte. Unlike the mouse mover, whether it is on persists too — the
+    // key is owned by `PaperOverlayManager`, which restores it at launch.
+    @AppStorage(PaperOverlayManager.textureKey) var paperTexture = PaperTexture.matte.rawValue
+    @AppStorage(PaperOverlayManager.strengthKey) var paperStrength = PaperStrength.defaultValue
+
+    /// The chosen texture, falling back to the default if the stored value is
+    /// from a build that spelled it differently.
+    var paperTextureValue: PaperTexture {
+        PaperTexture(rawValue: paperTexture) ?? .matte
+    }
+
     var launchAtLogin: Bool {
         get {
             SMAppService.mainApp.status == .enabled
@@ -97,6 +108,9 @@ class SettingsManager: ObservableObject {
     @Published var clipboardShortcut: CustomShortcut {
         didSet { saveShortcuts() }
     }
+    @Published var paperShortcut: CustomShortcut {
+        didSet { saveShortcuts() }
+    }
     @Published var scheduledCombo: CustomShortcut {
         didSet { saveScheduledCombo() }
     }
@@ -114,6 +128,7 @@ class SettingsManager: ObservableObject {
             typeIt: typeItShortcut,
             moveMouse: moveMouseShortcut,
             clipboard: clipboardShortcut,
+            paper: paperShortcut,
             enabledTools: enabledTools
         )
     }
@@ -278,6 +293,13 @@ class SettingsManager: ObservableObject {
             clipboardShortcut = .defaultClipboard
         }
 
+        if let data = defaults.data(forKey: "paperShortcut"),
+           let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
+            paperShortcut = shortcut
+        } else {
+            paperShortcut = .defaultPaper
+        }
+
         if let data = defaults.data(forKey: "scheduledCombo"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             scheduledCombo = shortcut
@@ -307,6 +329,9 @@ class SettingsManager: ObservableObject {
         if let data = try? JSONEncoder().encode(clipboardShortcut) {
             defaults.set(data, forKey: "clipboardShortcut")
         }
+        if let data = try? JSONEncoder().encode(paperShortcut) {
+            defaults.set(data, forKey: "paperShortcut")
+        }
     }
 
     func resetToDefaults() {
@@ -314,6 +339,7 @@ class SettingsManager: ObservableObject {
         typeItShortcut = .defaultTypeIt
         moveMouseShortcut = .defaultMoveMouse
         clipboardShortcut = .defaultClipboard
+        paperShortcut = .defaultPaper
     }
 
     func showSettingsWindow(

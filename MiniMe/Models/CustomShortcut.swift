@@ -14,6 +14,7 @@ struct CustomShortcut: Codable, Equatable, Sendable {
     static nonisolated let defaultTypeIt = CustomShortcut(keyCode: 18, modifiers: 1179648) // ⌘⇧1
     static nonisolated let defaultMoveMouse = CustomShortcut(keyCode: 46, modifiers: 1179648) // ⌘⇧M
     static nonisolated let defaultClipboard = CustomShortcut(keyCode: 8, modifiers: 524288) // ⌥C
+    static nonisolated let defaultPaper = CustomShortcut(keyCode: 35, modifiers: 1179648) // ⌘⇧P
 
     var displayString: String {
         var parts: [String] = []
@@ -94,6 +95,7 @@ struct ShortcutSet: Equatable, Sendable {
     var typeIt: CustomShortcut
     var moveMouse: CustomShortcut
     var clipboard: CustomShortcut
+    var paper: CustomShortcut
 
     /// Which tools are switched on. A shortcut whose tool is absent is not
     /// registered. Including this here means flipping a tool's switch changes

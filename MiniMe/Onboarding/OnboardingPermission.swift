@@ -79,7 +79,8 @@ extension Tool {
             // leaving the entry on the pasteboard for a manual ⌘V, so history
             // and picking both work untouched without it.
             return PermissionNeed(.accessibility, isRequired: false)
-        case .preventSleep:
+        case .preventSleep, .paper:
+            // Both are pure output — an IOKit assertion and a window of our own.
             return nil
         }
     }

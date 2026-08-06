@@ -54,6 +54,16 @@ struct ShortcutsSettingsView: View {
                 }
             }
 
+            if settings.isEnabled(.paper) {
+                Section("Paper") {
+                    SettingsRow(icon: "camera.filters", tint: tint) {
+                        Text("Turn the paper matte on / off")
+                        Spacer()
+                        ShortcutRecorderButton(shortcut: $settings.paperShortcut)
+                    }
+                }
+            }
+
             Section {
                 Button("Reset to Defaults") {
                     settings.resetToDefaults()

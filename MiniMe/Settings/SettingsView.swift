@@ -48,6 +48,7 @@ struct SettingsView: View {
             SettingsTab(id: "scheduler", title: "Scheduler", icon: "alarm.fill", tint: .pink),
             SettingsTab(id: "mouse", title: "Mouse", icon: "cursorarrow.motionlines", tint: .indigo, requires: .moveMouse),
             SettingsTab(id: "clipboard", title: "Clipboard", icon: "doc.on.clipboard.fill", tint: .teal, requires: .clipboard),
+            SettingsTab(id: "paper", title: "Paper", icon: "camera.filters", tint: .brown, requires: .paper),
         ]),
         SettingsTabGroup(heading: "App", tabs: [
             SettingsTab(id: "shortcuts", title: "Shortcuts", icon: "command.square.fill", tint: .green),
@@ -178,6 +179,8 @@ struct SettingsView: View {
                     MouseMoverSettingsView(settings: settings)
                 case "clipboard":
                     ClipboardSettingsView(settings: settings, store: clipboardStore)
+                case "paper":
+                    PaperSettingsView(settings: settings)
                 case "shortcuts":
                     ShortcutsSettingsView(settings: settings)
                 case "about":

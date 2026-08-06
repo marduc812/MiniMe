@@ -121,19 +121,41 @@ struct CustomShortcutTests {
         #expect(!CustomShortcut.defaultClipboard.matches(keyCode: 8, modifiers: 0))
     }
 
-    @Test func shortcutSetHoldsAllFourShortcuts() {
+    @Test func shortcutSetHoldsEveryShortcut() {
         let set = ShortcutSet(
             capture: .defaultCapture,
             typeIt: .defaultTypeIt,
             moveMouse: .defaultMoveMouse,
-            clipboard: .defaultClipboard
+            clipboard: .defaultClipboard,
+            paper: .defaultPaper
         )
         #expect(set.clipboard == .defaultClipboard)
+        #expect(set.paper == .defaultPaper)
         #expect(set == ShortcutSet(
             capture: .defaultCapture,
             typeIt: .defaultTypeIt,
             moveMouse: .defaultMoveMouse,
-            clipboard: .defaultClipboard
+            clipboard: .defaultClipboard,
+            paper: .defaultPaper
         ))
+    }
+
+    @Test func defaultPaperMatchesACommandShiftPEvent() {
+        let commandShift = NSEvent.ModifierFlags([.command, .shift]).rawValue
+        #expect(CustomShortcut.defaultPaper.matches(keyCode: 35, modifiers: commandShift))
+        #expect(!CustomShortcut.defaultPaper.matches(keyCode: 35, modifiers: 0))
+    }
+
+    /// Two tools answering the same combination means one of them never fires —
+    /// `RegisterEventHotKey` hands the key to whoever asked first.
+    @Test func theDefaultShortcutsAreAllDistinct() {
+        let defaults: [CustomShortcut] = [
+            .defaultCapture, .defaultTypeIt, .defaultMoveMouse, .defaultClipboard, .defaultPaper
+        ]
+        for (index, shortcut) in defaults.enumerated() {
+            for other in defaults[(index + 1)...] {
+                #expect(!shortcut.matches(keyCode: other.keyCode, modifiers: other.modifiers))
+            }
+        }
     }
 }

@@ -14,6 +14,7 @@ struct ShortcutSetTests {
             typeIt: .defaultTypeIt,
             moveMouse: .defaultMoveMouse,
             clipboard: .defaultClipboard,
+            paper: .defaultPaper,
             enabledTools: enabled
         )
     }

@@ -84,6 +84,7 @@ extension Tool {
         case .clipboard:    ClipboardScene()
         case .moveMouse:    MoveMouseScene()
         case .preventSleep: PreventSleepScene()
+        case .paper:        PaperScene()
         }
     }
 
@@ -100,6 +101,8 @@ extension Tool {
             return "Nudges the pointer now and then so your Mac never looks away."
         case .preventSleep:
             return "Holds the display awake for as long as you pick."
+        case .paper:
+            return "Lays a paper-like matte over the screen, so highlights stop glaring back at you."
         }
     }
 }

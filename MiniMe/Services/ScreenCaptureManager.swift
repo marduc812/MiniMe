@@ -176,6 +176,13 @@ class ScreenCaptureManager: ObservableObject {
         let ocrAccuracy = UserDefaults.standard.string(forKey: "ocrAccuracy") ?? "accurate"
         let useLanguageCorrection = UserDefaults.standard.object(forKey: "useLanguageCorrection") as? Bool ?? false
 
+        // The paper matte must not end up in what we OCR — recognition against a
+        // washed, grainy image is measurably worse. The overlay windows are also
+        // `sharingType = .none`, which should keep them out on its own; this is
+        // the half that doesn't depend on how ScreenCaptureKit composites a
+        // display filter.
+        let paperWindowNumbers = PaperOverlayManager.shared.windowNumbers
+
         // Perform entire capture and OCR pipeline on background thread
         // Use .utility priority (below default) to avoid priority inversion with SCScreenshotManager
         Task.detached(priority: .utility) { [weak self] in
@@ -187,7 +194,10 @@ class ScreenCaptureManager: ObservableObject {
                     return
                 }
 
-                let filter = SCContentFilter(display: display, excludingWindows: [])
+                let excluded = content.windows.filter {
+                    paperWindowNumbers.contains(Int($0.windowID))
+                }
+                let filter = SCContentFilter(display: display, excludingWindows: excluded)
                 let config = SCStreamConfiguration()
                 config.width = Int(display.width) * Int(scaleFactor)
                 config.height = Int(display.height) * Int(scaleFactor)

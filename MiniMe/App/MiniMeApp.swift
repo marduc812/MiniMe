@@ -79,6 +79,7 @@ struct MiniMeApp: App {
     @ObservedObject private var typingService = TypingService.shared
     @ObservedObject private var mouseMover = MouseMoverManager.shared
     @ObservedObject private var scheduler = ScheduledActionManager.shared
+    @ObservedObject private var paper = PaperOverlayManager.shared
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @State private var hasSetupHotkeys = false
 
@@ -133,12 +134,21 @@ struct MiniMeApp: App {
         .onChange(of: settingsManager.clipboardMaxEntries) { _, newValue in
             clipboardStore.maxEntries = newValue
         }
+        .onChange(of: settingsManager.paperTexture, initial: true) { _, _ in
+            applyPaperConfiguration()
+        }
+        .onChange(of: settingsManager.paperStrength) { _, _ in
+            applyPaperConfiguration()
+        }
         .onChange(of: hasSetupHotkeys, initial: true) { _, _ in
             if !hasSetupHotkeys {
                 hasSetupHotkeys = true
                 setupHotkeys()
                 setupAppDelegate()
                 startClipboardMonitor()
+                PaperOverlayManager.shared.restoreFromDefaults(
+                    toolEnabled: settingsManager.isEnabled(.paper)
+                )
                 updateManager.startPeriodicChecks()
                 NotificationCenter.default.addObserver(
                     forName: .appShouldShowMenu,
@@ -252,6 +262,24 @@ struct MiniMeApp: App {
         if !enabled.contains(.capture) {
             screenCapture.cancelAreaSelection()
         }
+
+        if enabled.contains(.paper) {
+            // Switching the tool back on restores the matte if it was up when
+            // the tool was switched off — `suspend()` never recorded it as off.
+            PaperOverlayManager.shared.restoreFromDefaults(toolEnabled: true)
+        } else {
+            PaperOverlayManager.shared.suspend()
+        }
+    }
+
+    /// Pushes the chosen texture and strength to the live overlay windows.
+    /// Runs on every slider tick, which is why it only swaps a cached tile and
+    /// an alpha rather than re-rendering anything.
+    private func applyPaperConfiguration() {
+        PaperOverlayManager.shared.apply(
+            texture: settingsManager.paperTextureValue,
+            strength: settingsManager.paperStrength
+        )
     }
 
     private func startClipboardMonitor() {
@@ -358,6 +386,9 @@ struct MiniMeApp: App {
         hotkeyManager.onClipboard = {
             self.showClipboardPicker()
         }
+        hotkeyManager.onTogglePaper = {
+            PaperOverlayManager.shared.toggle()
+        }
         hotkeyManager.startMonitoring()
     }
 
@@ -372,6 +403,7 @@ struct MenuContentView: View {
     @ObservedObject var onboarding: OnboardingManager
     let showClipboard: () -> Void
     @ObservedObject var mouseMover = MouseMoverManager.shared
+    @ObservedObject var paper = PaperOverlayManager.shared
 
     /// The capture/type/clipboard group and the mouse/sleep group are each
     /// hidden entirely when every tool in them is switched off, so a disabled
@@ -383,7 +415,9 @@ struct MenuContentView: View {
     }
 
     private var hasUtilityTools: Bool {
-        settingsManager.isEnabled(.moveMouse) || settingsManager.isEnabled(.preventSleep)
+        settingsManager.isEnabled(.moveMouse)
+            || settingsManager.isEnabled(.preventSleep)
+            || settingsManager.isEnabled(.paper)
     }
 
     var body: some View {
@@ -435,6 +469,19 @@ struct MenuContentView: View {
                     }
                 }
                 .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.moveMouseShortcut))
+            }
+
+            if settingsManager.isEnabled(.paper) {
+                Button {
+                    PaperOverlayManager.shared.toggle()
+                } label: {
+                    if paper.isActive {
+                        Label("Paper", systemImage: "checkmark")
+                    } else {
+                        Label("Paper", systemImage: "camera.filters")
+                    }
+                }
+                .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.paperShortcut))
             }
 
             if settingsManager.isEnabled(.preventSleep) {

@@ -2,6 +2,12 @@
 
 Notable changes to MiniMe, newest first.
 
+## 1.0.14
+
+- Add Paper: a translucent paper matte over every display, so highlights diffuse and contrast softens.
+- Pick between three textures—Matte, Parchment and Vellum—and set the strength from 15% to 30%.
+- Keep the matte out of screenshots, screen recordings and MiniMe's own captures.
+
 ## 1.0.13
 
 - Remember Prevent Sleep across restarts—a timed session resumes with only the time it had left, and one that ran out while MiniMe was closed stays off.
