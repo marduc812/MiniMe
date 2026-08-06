@@ -60,37 +60,23 @@ struct PaperOverlayLayers: View {
     }
 }
 
-/// Sample content under the matte, for judging a texture and strength without
-/// putting them on the whole screen.
+/// What sits under the matte in every preview.
 ///
 /// The three blocks are chosen to show what the matte actually does: it lifts a
-/// dark field, dulls a saturated one, and leaves light text legible.
-struct PaperSwatch: View {
-    let texture: PaperTexture
-    let strength: Int
+/// dark field, dulls a saturated one, and leaves light text legible. Shared by
+/// the large swatch and the picker's cells so a texture is judged against the
+/// same content whichever size it is drawn at.
+struct PaperSampleContent: View {
+    /// The text block's bars, scaled down for the picker cells.
+    var scale: CGFloat = 1
 
     var body: some View {
-        ZStack {
-            sampleContent
-            PaperOverlayLayers(texture: texture)
-                .opacity(PaperStrength.alpha(for: strength))
-        }
-        .frame(height: 92)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(.separator, lineWidth: 1)
-        )
-        .accessibilityLabel("Preview of \(texture.title) at \(strength) percent")
-    }
-
-    private var sampleContent: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 6 * scale) {
                 ForEach([54.0, 40.0, 48.0], id: \.self) { width in
                     Capsule()
                         .fill(.black.opacity(0.75))
-                        .frame(width: width, height: 5)
+                        .frame(width: width * scale, height: 5 * scale)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -106,5 +92,27 @@ struct PaperSwatch: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+}
+
+/// Sample content under the matte, for judging a texture and strength without
+/// putting them on the whole screen.
+struct PaperSwatch: View {
+    let texture: PaperTexture
+    let strength: Int
+
+    var body: some View {
+        ZStack {
+            PaperSampleContent()
+            PaperOverlayLayers(texture: texture)
+                .opacity(PaperStrength.alpha(for: strength))
+        }
+        .frame(height: 92)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(.separator, lineWidth: 1)
+        )
+        .accessibilityLabel("Preview of \(texture.title) at \(PaperStrength.percentLabel(for: strength))")
     }
 }

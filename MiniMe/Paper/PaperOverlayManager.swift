@@ -5,7 +5,7 @@
 
 import AppKit
 
-/// Holds a paper matte over every attached display.
+/// Holds a paper matte over the displays the user selected.
 ///
 /// Runtime state is a window per screen and nothing else — no timers, no event
 /// taps, no polling. Once the windows are up the tool costs what a static
@@ -22,14 +22,22 @@ final class PaperOverlayManager: ObservableObject {
     static let activeKey = "paperActive"
     static let textureKey = "paperTexture"
     static let strengthKey = "paperStrength"
+    /// The displays the user switched **off**. See `PaperDisplaySelection` for
+    /// why the stored list is the exclusions rather than the inclusions.
+    static let excludedDisplaysKey = "paperExcludedDisplays"
 
     @Published private(set) var isActive = false
     /// How many displays are currently covered — what the Settings row reports.
     @Published private(set) var coveredScreens = 0
+    /// Every attached display and whether the matte covers it. Kept current
+    /// whether or not the matte is up, so displays can be chosen before it is
+    /// switched on.
+    @Published private(set) var displays: [PaperDisplay] = []
 
     private var windows: [CGDirectDisplayID: PaperOverlayWindow] = [:]
     private var texture: PaperTexture = .matte
     private var strength: Int = PaperStrength.defaultValue
+    private var excludedDisplays: Set<CGDirectDisplayID> = []
     private let defaults: UserDefaults
 
     private init(defaults: UserDefaults = .standard) {
@@ -41,6 +49,9 @@ final class PaperOverlayManager: ObservableObject {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
+
+        loadExcludedDisplays()
+        refreshDisplays()
     }
 
     // MARK: - State
@@ -104,21 +115,66 @@ final class PaperOverlayManager: ObservableObject {
         }
     }
 
+    // MARK: - Displays
+
+    /// Switches one display's matte on or off.
+    ///
+    /// Sticky configuration, not runtime state: it survives deactivate,
+    /// activate, the hotkey and a relaunch. Turning Paper on covers whichever
+    /// displays are selected — it never resets the selection to all of them.
+    func setCovered(_ covered: Bool, for displayID: CGDirectDisplayID) {
+        if covered {
+            excludedDisplays.remove(displayID)
+        } else {
+            excludedDisplays.insert(displayID)
+        }
+        defaults.set(excludedDisplays.map(Int.init), forKey: Self.excludedDisplaysKey)
+        reconcile()
+    }
+
+    private func loadExcludedDisplays() {
+        let stored = defaults.array(forKey: Self.excludedDisplaysKey) as? [Int] ?? []
+        excludedDisplays = Set(stored.map(CGDirectDisplayID.init))
+    }
+
+    /// Rebuilds the list Settings shows. Called on every reconcile, so plugging
+    /// a monitor in with Settings open adds its row.
+    private func refreshDisplays() {
+        let covered = PaperDisplaySelection.covered(
+            attached: Set(NSScreen.screens.map(\.displayID)),
+            excluded: excludedDisplays
+        )
+        displays = NSScreen.screens.map { screen in
+            PaperDisplay(
+                id: screen.displayID,
+                name: screen.localizedName,
+                isCovered: covered.contains(screen.displayID)
+            )
+        }
+    }
+
     // MARK: - Windows
 
     @objc private func screenParametersChanged() {
         Task { @MainActor in reconcile() }
     }
 
-    /// Brings the windows in line with the attached displays.
+    /// Brings the windows in line with the displays the user selected.
     ///
     /// Only the difference is acted on: `didChangeScreenParametersNotification`
     /// also fires for things that don't change the screen list, and rebuilding
     /// every window on those would flicker the matte.
     private func reconcile() {
-        let screens = isActive ? NSScreen.screens : []
-        let attached = Set(screens.map(\.displayID))
-        let plan = PaperWindowPlan.reconciling(existing: Set(windows.keys), attached: attached)
+        refreshDisplays()
+
+        let covered = isActive
+            ? PaperDisplaySelection.covered(
+                attached: Set(NSScreen.screens.map(\.displayID)),
+                excluded: excludedDisplays
+              )
+            : []
+        let screens = NSScreen.screens.filter { covered.contains($0.displayID) }
+        let plan = PaperWindowPlan.reconciling(existing: Set(windows.keys), attached: covered)
 
         for displayID in plan.remove {
             windows[displayID]?.orderOut(nil)

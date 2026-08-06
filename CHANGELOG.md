@@ -4,8 +4,11 @@ Notable changes to MiniMe, newest first.
 
 ## 1.0.14
 
-- Add Paper: a translucent paper matte over every display, so highlights diffuse and contrast softens.
-- Pick between three textures—Matte, Parchment and Vellum—and set the strength from 15% to 30%.
+- Add Paper: a translucent paper matte over your displays, so highlights diffuse and contrast softens.
+- Pick between six textures—Onionskin, Vellum, Matte, Linen, Parchment and Newsprint—from a grid that previews each one.
+- Choose which displays the matte covers; the choice sticks across the hotkey, the menu and a relaunch.
+- Set the strength anywhere from 0% to 30%, with the slider showing the opacity it actually renders rather than its own position.
+- Switch the matte with its hotkey or its menu bar item; Settings no longer carries a second on/off switch of its own.
 - Keep the matte out of screenshots, screen recordings and MiniMe's own captures.
 - Remove Type It and the Scheduler, along with their settings panes, shortcuts and menu bar entries.
 - Clear the preferences those two left behind, so an upgrade ends up with the same settings a fresh install would have.
