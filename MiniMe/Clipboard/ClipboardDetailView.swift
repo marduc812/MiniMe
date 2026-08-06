@@ -11,6 +11,11 @@ import SwiftUI
 struct ClipboardDetailView: View {
     let entry: ClipboardEntry?
     let store: ClipboardStore
+    /// Whether the preview card may draw its contents yet. The rest of the pane —
+    /// source, timestamp, size, the actions — costs nothing and is always shown;
+    /// only the preview's cost scales with the clipping, so only the preview waits
+    /// for the panel to be on screen. See `ClipboardPickerView.previewReady`.
+    let showsPreview: Bool
     let onCopy: (ClipboardEntry) -> Void
     let onDelete: (ClipboardEntry) -> Void
 
@@ -37,15 +42,12 @@ struct ClipboardDetailView: View {
     @ViewBuilder
     private func previewCard(for entry: ClipboardEntry) -> some View {
         Group {
-            switch entry.content {
-            case .text(let string):
-                LinkedTextView(string: string)
-            case .image(let fileName, _, _):
-                ImageBlobView(url: store.blobURL(named: fileName))
-                    .padding(10)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .files(let paths):
-                filesPreview(paths)
+            if showsPreview {
+                previewContent(for: entry)
+            } else {
+                // The empty card already holds the full frame, so the preview
+                // lands inside it without shifting anything around it.
+                Color.clear
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -54,6 +56,22 @@ struct ClipboardDetailView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(.separator.opacity(0.5), lineWidth: 0.5)
         )
+    }
+
+    @ViewBuilder
+    private func previewContent(for entry: ClipboardEntry) -> some View {
+        switch entry.content {
+        case .text(let string):
+            // Capped: the pane must not typeset a clipping of unbounded size on
+            // the main thread. See `ClipboardPreviewText`.
+            LinkedTextView(preview: ClipboardPreviewText.preview(for: string))
+        case .image(let fileName, _, _):
+            ImageBlobView(url: store.blobURL(named: fileName))
+                .padding(10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .files(let paths):
+            filesPreview(paths)
+        }
     }
 
     private func filesPreview(_ paths: [String]) -> some View {
@@ -198,7 +216,9 @@ struct ClipboardDetailView: View {
 /// clipping is prose or a payload rather than something with links worth
 /// hunting for — previews change on every hover, so this cannot be slow.
 private struct LinkedTextView: View {
-    let string: String
+    let preview: ClipboardPreviewText.Preview
+
+    private var string: String { preview.text }
 
     /// The scan result is tagged with the text it came from. Scans finish out of
     /// order when the hover runs down the list, so an untagged cache would show
@@ -217,17 +237,33 @@ private struct LinkedTextView: View {
 
     var body: some View {
         ScrollView {
-            Text(displayed)
-                .font(.system(size: 12))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
+            VStack(alignment: .leading, spacing: 10) {
+                Text(displayed)
+                    .font(.system(size: 12))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if preview.isTruncated { truncationNote }
+            }
+            .padding(12)
         }
         .task(id: string) {
             let scanned = await Task.detached { LinkedTextView.linkify(string) }.value
             guard !Task.isCancelled else { return }
             linkified = (string, scanned)
         }
+    }
+
+    /// Says plainly that this is a preview, so a clipped tail is never mistaken
+    /// for a clipping that lost its tail. Copy still writes the whole thing.
+    private var truncationNote: some View {
+        Label(
+            "Preview only — \(preview.omittedCharacters.formatted()) more characters. Copy takes all of it.",
+            systemImage: "text.append"
+        )
+        .font(.system(size: 10))
+        .foregroundStyle(.tertiary)
+        .padding(.top, 2)
     }
 
     nonisolated private static func linkify(_ string: String) -> AttributedString {

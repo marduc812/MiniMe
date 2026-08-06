@@ -2,6 +2,11 @@
 
 Notable changes to MiniMe, newest first.
 
+## Unreleased
+
+- Stop the clipboard picker from freezing on a large clipping: the preview shows the first 4,000 characters and says how many more there are, and Copy still takes the whole thing.
+- Show the clipboard list the moment the picker opens, and fill the preview in behind it.
+
 ## 1.0.14
 
 - Add Paper: a translucent paper matte over your displays, so highlights diffuse and contrast softens.

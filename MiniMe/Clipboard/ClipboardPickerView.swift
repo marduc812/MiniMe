@@ -15,6 +15,17 @@ struct ClipboardPickerView: View {
     @State private var searchText = ""
     @State private var selectedID: UUID?
     @State private var hoveredID: UUID?
+    /// Gates the detail pane's preview card until the panel has painted.
+    ///
+    /// Opening the picker is a keystroke away from whatever the user was doing,
+    /// so the list — titles, icons, timestamps, all cheap — has to be on screen
+    /// immediately. Laying out a preview is the one part that scales with the
+    /// clipping, so it waits a turn rather than holding up the panel.
+    ///
+    /// This lives here rather than in the pane because the pane is rebuilt on
+    /// every hover (`.id(entry.id)`); state held inside it would reset and blank
+    /// the preview each time the pointer moved to a new row.
+    @State private var previewReady = false
     @State private var keyMonitor: Any?
     @FocusState private var searchFocused: Bool
 
@@ -98,6 +109,14 @@ struct ClipboardPickerView: View {
             selectedID = filteredEntries.first?.id
             installKeyMonitor()
         }
+        .task {
+            // `.task` can still run inside the pass that puts the panel up, so
+            // yielding moves the flip to the next turn of the run loop — by
+            // which point the list is on screen and the preview costs the user
+            // nothing.
+            await Task.yield()
+            previewReady = true
+        }
         .onDisappear(perform: removeKeyMonitor)
         .onChange(of: searchText) { _, _ in
             // Keep the highlight on a row that is actually visible.
@@ -146,6 +165,7 @@ struct ClipboardPickerView: View {
             ClipboardDetailView(
                 entry: previewed,
                 store: store,
+                showsPreview: previewReady,
                 onCopy: { onSelect($0) },
                 onDelete: { delete($0) }
             )
