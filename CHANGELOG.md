@@ -8,6 +8,7 @@ Notable changes to MiniMe, newest first.
 - Pick between three textures—Matte, Parchment and Vellum—and set the strength from 15% to 30%.
 - Keep the matte out of screenshots, screen recordings and MiniMe's own captures.
 - Remove Type It and the Scheduler, along with their settings panes, shortcuts and menu bar entries.
+- Clear the preferences those two left behind, so an upgrade ends up with the same settings a fresh install would have.
 
 ## 1.0.13
 

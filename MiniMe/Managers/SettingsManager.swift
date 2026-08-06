@@ -247,6 +247,7 @@ class SettingsManager: ObservableObject {
         self.defaults = defaults
 
         Tool.migrateLegacyKeys(in: defaults)
+        RetiredPreferences.removeAll(from: defaults)
         enabledTools = Tool.enabledSet(from: defaults)
 
         if let data = defaults.data(forKey: "captureShortcut"),
