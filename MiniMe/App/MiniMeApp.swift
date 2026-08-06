@@ -76,9 +76,7 @@ struct MiniMeApp: App {
     @StateObject private var clipboardStore = ClipboardStore()
     @StateObject private var clipboardPanel = ClipboardPanelController()
     @State private var clipboardMonitor: ClipboardMonitor?
-    @ObservedObject private var typingService = TypingService.shared
     @ObservedObject private var mouseMover = MouseMoverManager.shared
-    @ObservedObject private var scheduler = ScheduledActionManager.shared
     @ObservedObject private var paper = PaperOverlayManager.shared
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @State private var hasSetupHotkeys = false
@@ -99,14 +97,7 @@ struct MiniMeApp: App {
                 showClipboard: { showClipboardPicker() }
             )
         } label: {
-            if let count = typingService.countdown {
-                Text("\(count)")
-                    .font(.system(size: 14, weight: .bold).monospacedDigit())
-            } else if scheduler.isArmed {
-                // Show an hourglass while a scheduled action is pending, so the
-                // user knows an automated action is about to fire and to wait.
-                Image(systemName: "hourglass")
-            } else if mouseMover.isArmed {
+            if mouseMover.isArmed {
                 // Show a moving-cursor glyph while the mouse mover is active.
                 Image(systemName: "cursorarrow.motionlines")
             } else {
@@ -377,9 +368,6 @@ struct MiniMeApp: App {
             self.settingsManager.closeSettingsWindow()
             self.screenCapture.startAreaSelection()
         }
-        hotkeyManager.onTypeIt = {
-            TypingService.shared.typeFromSelection()
-        }
         hotkeyManager.onToggleMouseMove = {
             MouseMoverManager.shared.toggle()
         }
@@ -405,12 +393,11 @@ struct MenuContentView: View {
     @ObservedObject var mouseMover = MouseMoverManager.shared
     @ObservedObject var paper = PaperOverlayManager.shared
 
-    /// The capture/type/clipboard group and the mouse/sleep group are each
-    /// hidden entirely when every tool in them is switched off, so a disabled
-    /// tool never leaves a stray or doubled separator behind.
+    /// The capture/clipboard group and the mouse/sleep group are each hidden
+    /// entirely when every tool in them is switched off, so a disabled tool
+    /// never leaves a stray or doubled separator behind.
     private var hasActionTools: Bool {
         settingsManager.isEnabled(.capture)
-            || settingsManager.isEnabled(.typeIt)
             || settingsManager.isEnabled(.clipboard)
     }
 
@@ -432,17 +419,6 @@ struct MenuContentView: View {
                     Label("Capture", systemImage: "text.viewfinder")
                 }
                 .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.captureShortcut))
-            }
-
-            if settingsManager.isEnabled(.typeIt) {
-                Button {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        TypingService.shared.typeFromSelection()
-                    }
-                } label: {
-                    Label("Type It", systemImage: "keyboard")
-                }
-                .modifier(DynamicKeyboardShortcut(shortcut: settingsManager.typeItShortcut))
             }
 
             if settingsManager.isEnabled(.clipboard) {

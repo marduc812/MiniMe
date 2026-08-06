@@ -12,10 +12,6 @@ struct OnboardingPermissionTests {
         #expect(Tool.capture.permissionNeed == PermissionNeed(.screenRecording, isRequired: true))
     }
 
-    @Test func typeItRequiresAccessibility() {
-        #expect(Tool.typeIt.permissionNeed == PermissionNeed(.accessibility, isRequired: true))
-    }
-
     @Test func moveMouseRequiresAccessibility() {
         #expect(Tool.moveMouse.permissionNeed == PermissionNeed(.accessibility, isRequired: true))
     }

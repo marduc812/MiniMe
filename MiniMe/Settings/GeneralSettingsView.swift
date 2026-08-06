@@ -15,14 +15,13 @@ struct GeneralSettingsView: View {
     /// that actually works. Capture is the natural suggestion, but it can be
     /// switched off, and every hotkey tool can be off at once.
     private var hiddenIconHint: String {
-        let candidates: [Tool] = [.capture, .clipboard, .typeIt]
+        let candidates: [Tool] = [.capture, .clipboard]
         guard let tool = candidates.first(where: { settings.isEnabled($0) }) else {
             return "No tool with a shortcut is switched on. Re-open MiniMe from Finder to change this."
         }
         let shortcut: CustomShortcut
         switch tool {
         case .clipboard: shortcut = settings.clipboardShortcut
-        case .typeIt:    shortcut = settings.typeItShortcut
         default:         shortcut = settings.captureShortcut
         }
         return "Use \(shortcut.displayString) (\(tool.title)) to interact with MiniMe."

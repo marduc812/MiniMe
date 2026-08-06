@@ -11,7 +11,6 @@ struct ShortcutSetTests {
     private func makeSet(enabled: Set<Tool>) -> ShortcutSet {
         ShortcutSet(
             capture: .defaultCapture,
-            typeIt: .defaultTypeIt,
             moveMouse: .defaultMoveMouse,
             clipboard: .defaultClipboard,
             paper: .defaultPaper,

@@ -80,7 +80,6 @@ extension Tool {
     @ViewBuilder var onboardingScene: some View {
         switch self {
         case .capture:      CaptureScene()
-        case .typeIt:       TypeItScene()
         case .clipboard:    ClipboardScene()
         case .moveMouse:    MoveMouseScene()
         case .preventSleep: PreventSleepScene()
@@ -93,8 +92,6 @@ extension Tool {
         switch self {
         case .capture:
             return "Pull text out of anything on screen — a screenshot, a video, a window that won't let you select."
-        case .typeIt:
-            return "Types your clipboard out key by key, for fields that refuse a paste."
         case .clipboard:
             return "Keeps everything you copy, so you can go back and grab it again."
         case .moveMouse:

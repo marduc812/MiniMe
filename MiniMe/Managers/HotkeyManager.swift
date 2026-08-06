@@ -43,7 +43,6 @@ class HotkeyManager: ObservableObject {
     @Published var hasAccessibilityPermission: Bool = true // Not needed for Carbon hotkeys
 
     var onCapture: (@MainActor () -> Void)?
-    var onTypeIt: (@MainActor () -> Void)?
     var onToggleMouseMove: (@MainActor () -> Void)?
     var onEscape: (@MainActor () -> Void)?
     var onClipboard: (@MainActor () -> Void)?
@@ -51,7 +50,6 @@ class HotkeyManager: ObservableObject {
 
     private var shortcuts = ShortcutSet(
         capture: .defaultCapture,
-        typeIt: .defaultTypeIt,
         moveMouse: .defaultMoveMouse,
         clipboard: .defaultClipboard,
         paper: .defaultPaper
@@ -62,7 +60,7 @@ class HotkeyManager: ObservableObject {
     private static let captureHotkeyID = EventHotKeyID(signature: mainSignature, id: 1)
     // id 2 was the history hotkey, retired with the capture-history feature.
     private static let escapeHotkeyID = EventHotKeyID(signature: mainSignature, id: 3)
-    private static let typeItHotkeyID = EventHotKeyID(signature: mainSignature, id: 4)
+    // id 4 was the Type It hotkey, retired with the tool.
     private static let moveMouseHotkeyID = EventHotKeyID(signature: mainSignature, id: 5)
     private static let clipboardHotkeyID = EventHotKeyID(signature: mainSignature, id: 6)
     private static let paperHotkeyID = EventHotKeyID(signature: mainSignature, id: 7)
@@ -128,9 +126,6 @@ class HotkeyManager: ObservableObject {
             case 1:
                 print("[HotkeyManager] Capture hotkey triggered")
                 manager.onCapture?()
-            case 4:
-                print("[HotkeyManager] Type It hotkey triggered")
-                manager.onTypeIt?()
             case 5:
                 print("[HotkeyManager] Move Mouse hotkey triggered")
                 manager.onToggleMouseMove?()
@@ -157,9 +152,6 @@ class HotkeyManager: ObservableObject {
         // A tool switched off in Settings gets no hotkey.
         if shortcuts.isEnabled(.capture) {
             register(shortcuts.capture, id: Self.captureHotkeyID, label: "capture")
-        }
-        if shortcuts.isEnabled(.typeIt) {
-            register(shortcuts.typeIt, id: Self.typeItHotkeyID, label: "type it")
         }
         if shortcuts.isEnabled(.moveMouse) {
             register(shortcuts.moveMouse, id: Self.moveMouseHotkeyID, label: "move mouse")

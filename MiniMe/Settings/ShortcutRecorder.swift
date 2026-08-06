@@ -8,9 +8,6 @@ import AppKit
 
 struct ShortcutRecorderButton: View {
     @Binding var shortcut: CustomShortcut
-    /// When true (default), a ⌘ or ⌃ modifier is required. Set false to allow plain
-    /// keys such as Return or F5 (used by the Scheduler's key combo).
-    var requiresModifier: Bool = true
     @State private var isRecording = false
 
     var body: some View {
@@ -40,7 +37,7 @@ struct ShortcutRecorderButton: View {
         }
         .buttonStyle(.plain)
         .background(
-            ShortcutRecorderHelper(isRecording: $isRecording, shortcut: $shortcut, requiresModifier: requiresModifier)
+            ShortcutRecorderHelper(isRecording: $isRecording, shortcut: $shortcut)
         )
     }
 }
@@ -48,14 +45,14 @@ struct ShortcutRecorderButton: View {
 struct ShortcutRecorderHelper: NSViewRepresentable {
     @Binding var isRecording: Bool
     @Binding var shortcut: CustomShortcut
-    var requiresModifier: Bool = true
 
     func makeNSView(context: Context) -> ShortcutRecorderNSView {
         let view = ShortcutRecorderNSView()
-        let requiresModifier = self.requiresModifier
+        // A global hotkey needs ⌘ or ⌃ — a bare key would swallow that key
+        // everywhere in the system.
         view.onKeyEvent = { keyCode, modifiers in
             let flags = NSEvent.ModifierFlags(rawValue: modifiers)
-            if !requiresModifier || flags.contains(.command) || flags.contains(.control) {
+            if flags.contains(.command) || flags.contains(.control) {
                 shortcut = CustomShortcut(keyCode: keyCode, modifiers: modifiers)
                 isRecording = false
             }

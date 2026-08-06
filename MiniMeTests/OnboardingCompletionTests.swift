@@ -54,12 +54,12 @@ struct OnboardingCompletionTests {
         let settings = SettingsManager(defaults: defaults)
 
         settings.setEnabled(.capture, false)
-        settings.setEnabled(.typeIt, false)
+        settings.setEnabled(.paper, false)
         OnboardingManager(defaults: defaults).finish()
 
         let reloaded = SettingsManager(defaults: defaults)
         #expect(!reloaded.isEnabled(.capture))
-        #expect(!reloaded.isEnabled(.typeIt))
+        #expect(!reloaded.isEnabled(.paper))
         #expect(reloaded.isEnabled(.clipboard))
         #expect(reloaded.isEnabled(.moveMouse))
         #expect(reloaded.isEnabled(.preventSleep))

@@ -1,7 +1,7 @@
 <div align="center">
   <img width="150" height="150" src="assets/icon.png" alt="MiniMe"/>
   <h1>MiniMe</h1>
-  <p>A lightweight macOS menu bar utility that captures text from anywhere on your screen, retypes it into any app, and keeps a full searchable history - powered by Apple's Vision framework with no external dependencies.</p>
+  <p>A lightweight macOS menu bar utility that captures text from anywhere on your screen and keeps a full searchable history - powered by Apple's Vision framework with no external dependencies.</p>
 
   <p>This was made for my personal use, and made public in case somebody else finds those deature useful<p>
 </div>
@@ -20,12 +20,6 @@
 - **Line-Aware Text Ordering** - Intelligent ordering that respects document layout
 - **Language Correction Toggle** - Optional natural-language correction (off by default, since it can alter code, URLs, and IDs)
 
-### Type It
-- **Retype Anywhere** - Captures selected text and replays it keystroke-by-keystroke into any app, bypassing paste restrictions
-- **Countdown Timer** - Configurable 1–10 second countdown before typing starts, giving you time to switch windows
-- **Countdown Sound** - Optional audio tick each second of the countdown
-- **Custom Shortcut** - Dedicated global hotkey for Type It
-
 ### Clipboard Manager
 - **Automatic Clipboard History** - Every copy on your Mac (text, images, files) is saved automatically, including OCR captures - no separate history to manage
 - **Quick Picker** - Searchable popover opened with a global hotkey; navigate with arrow keys and paste any of the top 9 items with `⌘1`–`⌘9`
@@ -36,10 +30,11 @@
 - **Configurable History Limit** - Keep 50, 100, 200, or 500 items
 - **Clear History** - Wipe all clipboard history in one click
 
-### Scheduled Actions
-- **Delayed Typing** - Schedule MiniMe to type text and/or press a key combo after a set delay (seconds, minutes, or hours)
-- **Repeat** - Optionally repeat the action on the same interval instead of firing once
-- **Runs in the Background** - Fires into whichever window is focused when the timer elapses; pair with Prevent Sleep for long delays
+### Paper
+- **Paper Matte** - Lays a translucent paper texture over every display, so highlights diffuse and contrast softens
+- **Three Textures** - Matte, Parchment and Vellum, each with its own wash and grain
+- **Adjustable Strength** - Slide from a barely-there veil to a heavy matte
+- **Invisible to Capture** - Never appears in screenshots, screen recordings or MiniMe's own captures
 
 ### Move Mouse
 - **Keep Sessions Awake** - Periodically drifts the cursor to random points in a 600×600 area to prevent idle timeouts and screen locks
@@ -48,7 +43,7 @@
 
 ### System
 - **Prevent Sleep** - Keep your Mac awake for a set duration: 10 min, 30 min, 1 hr, 2 hrs, 4 hrs, 8 hrs, or indefinitely. Disable any time from the menu bar
-- **Per-Tool On/Off Switches** - Turn Capture, Type It, Clipboard, Move Mouse, and Prevent Sleep on or off individually; disabled tools disappear from the menu bar and lose their hotkey
+- **Per-Tool On/Off Switches** - Turn Capture, Clipboard, Paper, Move Mouse, and Prevent Sleep on or off individually; disabled tools disappear from the menu bar and lose their hotkey
 - **Auto-Update Check** - Silently checks for new GitHub releases once per day; shows a notification in Settings → About when an update is available
 - **Launch at Login** - Optional startup on system boot
 - **Customizable Shortcuts** - Configure global hotkeys for every tool
@@ -87,12 +82,9 @@ xcodebuild -project MiniMe.xcodeproj -scheme MiniMe -configuration Release
 3. **Select Area** - Click and drag to select the screen region containing text
 4. **Done** - Text is extracted and copied to your clipboard automatically
 
-### Type It
+### Paper
 
-1. Select text in any application
-2. Press the Type It shortcut (default: `⌘⇧1`)
-3. Switch to your target window during the countdown
-4. MiniMe retypes the text character by character
+Click **Paper** in the menu bar or press its shortcut (default: `⌘⇧P`) to lay the matte over every display. Pick the texture and strength in Settings → Paper.
 
 ### Prevent Sleep
 
@@ -103,8 +95,8 @@ Click **Prevent Sleep** in the menu bar and choose a duration. A "Turn Off Preve
 | Action | Shortcut |
 |--------|----------|
 | Capture | `⌘⇧2` |
-| Type It | `⌘⇧1` |
 | Clipboard picker | `⌥C` |
+| Paper on / off | `⌘⇧P` |
 | Start / Stop Move Mouse | `⌘⇧M` |
 | Settings | `⌘,` |
 | Quit | `⌘Q` |
@@ -116,7 +108,7 @@ Shortcuts can be fully customized in Settings → Shortcuts.
 ### General
 - Launch at login
 - Show/hide menu bar icon
-- Per-tool on/off switches (Capture, Type It, Clipboard, Move Mouse, Prevent Sleep)
+- Per-tool on/off switches (Capture, Clipboard, Paper, Move Mouse, Prevent Sleep)
 
 ### Capture (Image to Text)
 - Play sound on capture
@@ -125,14 +117,9 @@ Shortcuts can be fully customized in Settings → Shortcuts.
 - Line-aware text ordering
 - Language correction (off by default)
 
-### Type It
-- Countdown duration (1–10 seconds)
-- Sound on countdown
-
-### Scheduler
-- Delay before firing (seconds / minutes / hours)
-- Repeat on the same interval
-- Text to type and/or a key combo to press
+### Paper
+- Texture (Matte / Parchment / Vellum)
+- Strength
 
 ### Move Mouse
 - Minimum and maximum seconds between moves
@@ -144,7 +131,7 @@ Shortcuts can be fully customized in Settings → Shortcuts.
 - Ignore password-manager (concealed) clipboard content
 
 ### Shortcuts
-- Customize global hotkeys for Capture, Type It, Clipboard, and Move Mouse
+- Customize global hotkeys for Capture, Clipboard, Paper, and Move Mouse
 
 ### About
 - Current version
@@ -156,7 +143,7 @@ Shortcuts can be fully customized in Settings → Shortcuts.
 | Permission | Purpose |
 |------------|---------|
 | **Screen Recording** | Capture screen content for OCR |
-| **Accessibility** | Detect global keyboard shortcuts and simulate typing |
+| **Accessibility** | Move the mouse pointer, and paste clipboard entries into the app you came from |
 
 On first launch, macOS will prompt you to grant these permissions. You can also enable them manually:
 
@@ -178,12 +165,13 @@ MiniMe/
 │   ├── ScreenCaptureManager.swift
 │   ├── OCREngine.swift          # Vision text recognition (testable, standalone)
 │   ├── OCRImageProcessor.swift  # Pre-OCR upscaling for small text
-│   └── TypingService.swift
+│   └── PasteService.swift
 ├── Models/                 # Data models
+├── Clipboard/              # Clipboard monitor, store & picker
+├── Paper/                  # Paper matte overlay windows
 ├── Selection/              # Full-screen selection overlay
 ├── Settings/               # Settings UI (tabbed)
-├── History/                # History panel
-├── Onboarding/             # First-launch permission flow
+├── Onboarding/             # First-launch setup deck
 ├── UI/                     # Shared UI components
 └── Extensions/             # Swift extensions
 ```

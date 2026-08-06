@@ -24,11 +24,11 @@ struct SettingsManagerToolTests {
 
     @Test func aToolDisabledInDefaultsLoadsAsDisabled() {
         let defaults = scratchDefaults()
-        Tool.setEnabled(false, for: .typeIt, in: defaults)
+        Tool.setEnabled(false, for: .clipboard, in: defaults)
 
         let settings = SettingsManager(defaults: defaults)
 
-        #expect(!settings.isEnabled(.typeIt))
+        #expect(!settings.isEnabled(.clipboard))
         #expect(settings.isEnabled(.capture))
     }
 

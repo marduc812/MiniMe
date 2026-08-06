@@ -74,7 +74,7 @@ final class ToolToggleUITests: XCTestCase {
     func testToolsSectionListsEveryTool() throws {
         let window = openSettings()
 
-        for tool in ["capture", "typeIt", "clipboard", "moveMouse", "preventSleep"] {
+        for tool in ["capture", "clipboard", "moveMouse", "preventSleep", "paper"] {
             XCTAssertTrue(
                 window.switches["tool-toggle-\(tool)"].waitForExistence(timeout: 5),
                 "Tools section is missing a switch for \(tool)"

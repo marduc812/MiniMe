@@ -47,21 +47,12 @@ class SettingsManager: ObservableObject {
     @AppStorage("lineAwareOCR") var lineAwareOCR = true
     @AppStorage("ocrAccuracy") var ocrAccuracy = "accurate"
     @AppStorage("useLanguageCorrection") var useLanguageCorrection = false
-    @AppStorage("typeItCountdownDuration") var typeItCountdownDuration = 5
-    @AppStorage("typeItCountdownSound") var typeItCountdownSound = true
 
     // Clipboard manager (on/off lives in `Tool.clipboard`, not here)
     @AppStorage("clipboardPickBehavior") var clipboardPickBehavior = PasteService.PickBehavior.copyAndPaste.rawValue
     @AppStorage("clipboardCaptureImagesAndFiles") var clipboardCaptureImagesAndFiles = true
     @AppStorage("clipboardIgnoreConcealed") var clipboardIgnoreConcealed = true
     @AppStorage("clipboardMaxEntries") var clipboardMaxEntries = 200
-
-    // Scheduled action (config persists; armed runtime state does not — see ScheduledActionManager)
-    @AppStorage("scheduledText") var scheduledText = ""
-    @AppStorage("scheduledComboEnabled") var scheduledComboEnabled = true
-    @AppStorage("scheduledIntervalValue") var scheduledIntervalValue = 1
-    @AppStorage("scheduledIntervalUnit") var scheduledIntervalUnit = ScheduleUnit.hours.rawValue
-    @AppStorage("scheduledRepeat") var scheduledRepeat = false
 
     // Mouse mover (config persists; armed runtime state does not — see MouseMoverManager)
     @AppStorage("mouseMoverMinSeconds") var mouseMoverMinSeconds = 5
@@ -99,9 +90,6 @@ class SettingsManager: ObservableObject {
     @Published var captureShortcut: CustomShortcut {
         didSet { saveShortcuts() }
     }
-    @Published var typeItShortcut: CustomShortcut {
-        didSet { saveShortcuts() }
-    }
     @Published var moveMouseShortcut: CustomShortcut {
         didSet { saveShortcuts() }
     }
@@ -110,9 +98,6 @@ class SettingsManager: ObservableObject {
     }
     @Published var paperShortcut: CustomShortcut {
         didSet { saveShortcuts() }
-    }
-    @Published var scheduledCombo: CustomShortcut {
-        didSet { saveScheduledCombo() }
     }
 
     @Published private(set) var activeSleepDuration: SleepDuration? = nil
@@ -125,7 +110,6 @@ class SettingsManager: ObservableObject {
     var shortcutSet: ShortcutSet {
         ShortcutSet(
             capture: captureShortcut,
-            typeIt: typeItShortcut,
             moveMouse: moveMouseShortcut,
             clipboard: clipboardShortcut,
             paper: paperShortcut,
@@ -272,13 +256,6 @@ class SettingsManager: ObservableObject {
             captureShortcut = .defaultCapture
         }
 
-        if let data = defaults.data(forKey: "typeItShortcut"),
-           let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
-            typeItShortcut = shortcut
-        } else {
-            typeItShortcut = .defaultTypeIt
-        }
-
         if let data = defaults.data(forKey: "moveMouseShortcut"),
            let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
             moveMouseShortcut = shortcut
@@ -300,28 +277,12 @@ class SettingsManager: ObservableObject {
             paperShortcut = .defaultPaper
         }
 
-        if let data = defaults.data(forKey: "scheduledCombo"),
-           let shortcut = try? JSONDecoder().decode(CustomShortcut.self, from: data) {
-            scheduledCombo = shortcut
-        } else {
-            scheduledCombo = CustomShortcut(keyCode: 36, modifiers: 0) // Return
-        }
-
         restoreSleepSession()
-    }
-
-    private func saveScheduledCombo() {
-        if let data = try? JSONEncoder().encode(scheduledCombo) {
-            defaults.set(data, forKey: "scheduledCombo")
-        }
     }
 
     private func saveShortcuts() {
         if let data = try? JSONEncoder().encode(captureShortcut) {
             defaults.set(data, forKey: "captureShortcut")
-        }
-        if let data = try? JSONEncoder().encode(typeItShortcut) {
-            defaults.set(data, forKey: "typeItShortcut")
         }
         if let data = try? JSONEncoder().encode(moveMouseShortcut) {
             defaults.set(data, forKey: "moveMouseShortcut")
@@ -336,7 +297,6 @@ class SettingsManager: ObservableObject {
 
     func resetToDefaults() {
         captureShortcut = .defaultCapture
-        typeItShortcut = .defaultTypeIt
         moveMouseShortcut = .defaultMoveMouse
         clipboardShortcut = .defaultClipboard
         paperShortcut = .defaultPaper

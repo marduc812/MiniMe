@@ -24,8 +24,8 @@ enum OnboardingPermission: Equatable, CaseIterable {
     ///
     /// Both checks are deliberately non-prompting. The slide shows its own
     /// explanation and Grant button, so a system dialog firing underneath it —
-    /// or `TypingService.ensureAccessibilityPermission()`'s modal `NSAlert` —
-    /// would be talking over the UI that is already asking the question.
+    /// or `AccessibilityAuthorization.ensure(for:)`'s modal `NSAlert` — would be
+    /// talking over the UI that is already asking the question.
     var isGranted: Bool {
         switch self {
         case .screenRecording: return CGPreflightScreenCaptureAccess()
@@ -68,9 +68,6 @@ extension Tool {
         case .capture:
             // Nothing to OCR without it.
             return PermissionNeed(.screenRecording, isRequired: true)
-        case .typeIt:
-            // Synthesizing keystrokes *is* the feature.
-            return PermissionNeed(.accessibility, isRequired: true)
         case .moveMouse:
             // Moving the pointer *is* the feature.
             return PermissionNeed(.accessibility, isRequired: true)

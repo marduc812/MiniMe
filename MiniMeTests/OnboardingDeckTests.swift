@@ -18,8 +18,8 @@ struct OnboardingDeckTests {
     }
 
     /// `Tool.swift` claims to be the single source of truth for which tools
-    /// exist. The deck has to honour that, or adding a sixth tool silently
-    /// leaves it undocumented.
+    /// exist. The deck has to honour that, or adding a tool silently leaves it
+    /// undocumented.
     @Test func theWizardHasASlideForEveryTool() {
         let deck = OnboardingDeck()
 

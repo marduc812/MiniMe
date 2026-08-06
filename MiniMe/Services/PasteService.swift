@@ -73,7 +73,7 @@ final class PasteService {
         // Checked without prompting: the permission is optional for the
         // clipboard, and a modal on every pick would badger a user who has
         // deliberately chosen to paste manually.
-        guard TypingService.shared.isAccessibilityTrusted else { return }
+        guard AccessibilityAuthorization.isTrusted else { return }
         guard let app else { return }
 
         // The deployment target is macOS 14.6, so the no-argument activate() is

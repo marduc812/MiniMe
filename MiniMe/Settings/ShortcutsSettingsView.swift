@@ -24,16 +24,6 @@ struct ShortcutsSettingsView: View {
                 }
             }
 
-            if settings.isEnabled(.typeIt) {
-                Section("Type It") {
-                    SettingsRow(icon: "keyboard.fill", tint: tint) {
-                        Text("Type It")
-                        Spacer()
-                        ShortcutRecorderButton(shortcut: $settings.typeItShortcut)
-                    }
-                }
-            }
-
             if settings.isEnabled(.clipboard) {
                 Section("Clipboard") {
                     SettingsRow(icon: "doc.on.clipboard.fill", tint: tint) {

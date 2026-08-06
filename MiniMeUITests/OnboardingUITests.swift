@@ -15,7 +15,7 @@ final class OnboardingUITests: XCTestCase {
 
     var app: XCUIApplication!
 
-    private let toolIdentifiers = ["capture", "typeIt", "clipboard", "moveMouse", "preventSleep"]
+    private let toolIdentifiers = ["capture", "clipboard", "moveMouse", "preventSleep", "paper"]
 
     override func setUpWithError() throws {
         continueAfterFailure = false

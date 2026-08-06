@@ -44,8 +44,6 @@ struct SettingsView: View {
         ]),
         SettingsTabGroup(heading: "Tools", tabs: [
             SettingsTab(id: "capture", title: "Capture", icon: "text.viewfinder", tint: .orange, requires: .capture),
-            SettingsTab(id: "typeIt", title: "Type It", icon: "keyboard.fill", tint: .purple, requires: .typeIt),
-            SettingsTab(id: "scheduler", title: "Scheduler", icon: "alarm.fill", tint: .pink),
             SettingsTab(id: "mouse", title: "Mouse", icon: "cursorarrow.motionlines", tint: .indigo, requires: .moveMouse),
             SettingsTab(id: "clipboard", title: "Clipboard", icon: "doc.on.clipboard.fill", tint: .teal, requires: .clipboard),
             SettingsTab(id: "paper", title: "Paper", icon: "camera.filters", tint: .brown, requires: .paper),
@@ -171,10 +169,6 @@ struct SettingsView: View {
                 switch currentTab.id {
                 case "capture":
                     ImageToTextSettingsView(settings: settings)
-                case "typeIt":
-                    TypeItSettingsView(settings: settings)
-                case "scheduler":
-                    SchedulerSettingsView(settings: settings)
                 case "mouse":
                     MouseMoverSettingsView(settings: settings)
                 case "clipboard":

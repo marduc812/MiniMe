@@ -11,13 +11,8 @@ import Foundation
 /// and hides its Settings tab. This enum is the single source of truth for
 /// which tools exist — the Tools section, the menu, the tab bar, the Shortcuts
 /// tab and hotkey registration all derive from it.
-///
-/// The Scheduler is deliberately absent: it has no menu bar presence and stays
-/// inert until explicitly armed, so a switch would add UI without removing
-/// anything.
 enum Tool: String, CaseIterable, Identifiable, Sendable {
     case capture
-    case typeIt
     case clipboard
     case moveMouse
     case preventSleep
@@ -28,7 +23,6 @@ enum Tool: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .capture:      return "Capture"
-        case .typeIt:       return "Type It"
         case .clipboard:    return "Clipboard"
         case .moveMouse:    return "Move Mouse"
         case .preventSleep: return "Prevent Sleep"
@@ -39,7 +33,6 @@ enum Tool: String, CaseIterable, Identifiable, Sendable {
     var icon: String {
         switch self {
         case .capture:      return "text.viewfinder"
-        case .typeIt:       return "keyboard"
         case .clipboard:    return "doc.on.clipboard"
         case .moveMouse:    return "cursorarrow.motionlines"
         case .preventSleep: return "moon.zzz"

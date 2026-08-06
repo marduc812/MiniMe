@@ -11,7 +11,6 @@ struct CustomShortcut: Codable, Equatable, Sendable {
     var modifiers: UInt
 
     static nonisolated let defaultCapture = CustomShortcut(keyCode: 19, modifiers: 1179648)
-    static nonisolated let defaultTypeIt = CustomShortcut(keyCode: 18, modifiers: 1179648) // ⌘⇧1
     static nonisolated let defaultMoveMouse = CustomShortcut(keyCode: 46, modifiers: 1179648) // ⌘⇧M
     static nonisolated let defaultClipboard = CustomShortcut(keyCode: 8, modifiers: 524288) // ⌥C
     static nonisolated let defaultPaper = CustomShortcut(keyCode: 35, modifiers: 1179648) // ⌘⇧P
@@ -87,12 +86,11 @@ struct CustomShortcut: Codable, Equatable, Sendable {
 
 /// Every user-configurable global shortcut, passed to `HotkeyManager` as one value.
 ///
-/// This replaces `updateShortcuts(capture:typeIt:moveMouse:)`. Passed positionally,
+/// This replaces `updateShortcuts(capture:moveMouse:clipboard:)`. Passed positionally,
 /// every call site would thread four same-typed arguments, where transposing two of
 /// them is silent and easy.
 struct ShortcutSet: Equatable, Sendable {
     var capture: CustomShortcut
-    var typeIt: CustomShortcut
     var moveMouse: CustomShortcut
     var clipboard: CustomShortcut
     var paper: CustomShortcut

@@ -124,7 +124,6 @@ struct CustomShortcutTests {
     @Test func shortcutSetHoldsEveryShortcut() {
         let set = ShortcutSet(
             capture: .defaultCapture,
-            typeIt: .defaultTypeIt,
             moveMouse: .defaultMoveMouse,
             clipboard: .defaultClipboard,
             paper: .defaultPaper
@@ -133,7 +132,6 @@ struct CustomShortcutTests {
         #expect(set.paper == .defaultPaper)
         #expect(set == ShortcutSet(
             capture: .defaultCapture,
-            typeIt: .defaultTypeIt,
             moveMouse: .defaultMoveMouse,
             clipboard: .defaultClipboard,
             paper: .defaultPaper
@@ -150,7 +148,7 @@ struct CustomShortcutTests {
     /// `RegisterEventHotKey` hands the key to whoever asked first.
     @Test func theDefaultShortcutsAreAllDistinct() {
         let defaults: [CustomShortcut] = [
-            .defaultCapture, .defaultTypeIt, .defaultMoveMouse, .defaultClipboard, .defaultPaper
+            .defaultCapture, .defaultMoveMouse, .defaultClipboard, .defaultPaper
         ]
         for (index, shortcut) in defaults.enumerated() {
             for other in defaults[(index + 1)...] {

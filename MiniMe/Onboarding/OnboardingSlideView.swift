@@ -35,7 +35,7 @@ struct OnboardingSlideView: View {
                 .font(.system(size: 22, weight: .semibold))
                 .padding(.bottom, 10)
 
-            Text("Six small tools that live in your menu bar. Take a look at each one and keep the ones you want — you can change your mind later in Settings.")
+            Text("Five small tools that live in your menu bar. Take a look at each one and keep the ones you want — you can change your mind later in Settings.")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
