@@ -134,6 +134,7 @@ struct MiniMeApp: App {
         .onChange(of: hasSetupHotkeys, initial: true) { _, _ in
             if !hasSetupHotkeys {
                 hasSetupHotkeys = true
+                setupOnboardingPresentation()
                 setupHotkeys()
                 setupAppDelegate()
                 startClipboardMonitor()
@@ -154,16 +155,6 @@ struct MiniMeApp: App {
                 }
             }
         }
-        .onChange(of: onboardingManager.isPresented) { _, isPresented in
-            if isPresented {
-                showOnboardingWindow()
-            } else {
-                closeOnboardingWindow()
-                // Restart hotkey monitoring after permissions are granted
-                hotkeyManager.checkAccessibilityPermission()
-                hotkeyManager.startMonitoring()
-            }
-        }
         .onChange(of: screenCapture.needsPermission) { _, needsPermission in
             if needsPermission {
                 // Show only the Capture slide. Replaying the whole wizard would
@@ -176,6 +167,19 @@ struct MiniMeApp: App {
 
     @State private var onboardingWindow: NSWindow?
     @State private var onboardingWindowDelegate = OnboardingWindowDelegate()
+
+    /// Hands the manager the two things only the app can do. Installed before
+    /// anything can ask for the window — in particular before the first-launch
+    /// check below, which is the one request that must never be missed.
+    private func setupOnboardingPresentation() {
+        onboardingManager.onPresent = { showOnboardingWindow() }
+        onboardingManager.onDismiss = {
+            closeOnboardingWindow()
+            // Restart hotkey monitoring after permissions are granted
+            hotkeyManager.checkAccessibilityPermission()
+            hotkeyManager.startMonitoring()
+        }
+    }
 
     private func showOnboardingWindow() {
         if onboardingWindow != nil { return }

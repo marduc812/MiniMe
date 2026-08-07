@@ -6,7 +6,8 @@ Notable changes to MiniMe, newest first.
 
 - Stop the clipboard picker from freezing on a large clipping: the preview shows the first 4,000 characters and says how many more there are, and Copy still takes the whole thing.
 - Show the clipboard list the moment the picker opens, and fill the preview in behind it.
-- Always show first-run setup on a new install: dismissing a single permission slide no longer counts as having been through setup, which is why setup could vanish on a fresh Mac before it had ever appeared.
+- Always show first-run setup on a new install: on macOS 14 it could be skipped entirely, leaving a menu bar icon and no way to grant permissions except Settings › About › Run Setup Again.
+- Dismissing a single permission slide no longer counts as having been through setup.
 
 ## 1.0.14
 

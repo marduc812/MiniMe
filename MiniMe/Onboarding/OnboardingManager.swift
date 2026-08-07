@@ -37,6 +37,21 @@ final class OnboardingManager: ObservableObject {
 
     // MARK: - Presentation
 
+    /// Puts the setup window on screen, and takes it down again. Installed by
+    /// `MiniMeApp` at launch; absent in tests, which only need the state.
+    ///
+    /// Presentation is driven from here, at the moment it is asked for, rather
+    /// than from an observer on `isPresented`. That indirection cost a fresh
+    /// macOS 14 install its entire first run: the observer was an `.onChange`
+    /// on the `MenuBarExtra` scene, so the window only got made if the scene
+    /// happened to update, and a `.menu`-style menu bar scene with nothing
+    /// drawing its content need not update at all. The flag said the wizard was
+    /// showing, no window existed, and the user got a menu bar icon and nothing
+    /// else. It is also blind by construction to being asked twice — a second
+    /// request while `isPresented` is already true is not a change.
+    var onPresent: (@MainActor () -> Void)?
+    var onDismiss: (@MainActor () -> Void)?
+
     var shouldPresentOnLaunch: Bool {
         !defaults.bool(forKey: completedKey)
     }
@@ -46,6 +61,7 @@ final class OnboardingManager: ObservableObject {
         deck = OnboardingDeck()
         isPresented = true
         startPollingIfNeeded()
+        onPresent?()
     }
 
     /// Shows one tool's slide on its own — the path taken when a permission is
@@ -55,6 +71,7 @@ final class OnboardingManager: ObservableObject {
         deck = OnboardingDeck(singleTool: tool)
         isPresented = true
         startPollingIfNeeded()
+        onPresent?()
     }
 
     /// Closes the flow, and records first-run setup as done if that is what was
@@ -74,6 +91,7 @@ final class OnboardingManager: ObservableObject {
         }
         stopPolling()
         isPresented = false
+        onDismiss?()
     }
 
     // MARK: - Navigation
