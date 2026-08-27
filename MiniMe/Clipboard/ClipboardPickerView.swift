@@ -13,8 +13,8 @@ struct ClipboardPickerView: View {
     let onOpenSettings: () -> Void
 
     @State private var searchText = ""
-    @State private var selectedID: UUID?
-    @State private var hoveredID: UUID?
+    /// Which row the pointer and the arrow keys have settled on between them.
+    @State private var highlight = ClipboardHighlight()
     /// Gates the detail pane's preview card until the panel has painted.
     ///
     /// Opening the picker is a keystroke away from whatever the user was doing,
@@ -35,32 +35,11 @@ struct ClipboardPickerView: View {
         store.entries.filter { $0.matches(query: searchText) }
     }
 
-    /// The entry shown in the detail pane, and the row drawn as active: the last
-    /// row the mouse pointed at wins, otherwise the keyboard selection.
-    ///
-    /// Hover is sticky — it is not cleared when the cursor leaves a row — because
-    /// the reason to leave the list is usually to click Copy or Delete for the
-    /// entry being previewed, and a preview that snapped back on the way there
-    /// would take those buttons with it. Keyboard navigation clears it.
-    ///
-    /// Takes the visible entries rather than filtering again: it is consulted
-    /// once per row to decide the highlight, and re-filtering the whole history
-    /// each time made hovering quadratic in the size of the list.
-    private func previewEntry(in visible: [ClipboardEntry]) -> ClipboardEntry? {
-        if let hoveredID, let entry = visible.first(where: { $0.id == hoveredID }) {
-            return entry
-        }
-        if let selectedID, let entry = visible.first(where: { $0.id == selectedID }) {
-            return entry
-        }
-        return visible.first
-    }
-
     var body: some View {
         // Filtered once per pass and handed down, rather than recomputed by
         // every section and every row that needs it.
         let visible = filteredEntries
-        let previewed = previewEntry(in: visible)
+        let previewed = highlight.activeEntry(in: visible)
 
         VStack(spacing: 0) {
             searchBar
@@ -106,7 +85,7 @@ struct ClipboardPickerView: View {
         })
         .onAppear {
             searchFocused = true
-            selectedID = filteredEntries.first?.id
+            highlight.reset(to: filteredEntries.first?.id)
             installKeyMonitor()
         }
         .task {
@@ -120,8 +99,7 @@ struct ClipboardPickerView: View {
         .onDisappear(perform: removeKeyMonitor)
         .onChange(of: searchText) { _, _ in
             // Keep the highlight on a row that is actually visible.
-            selectedID = filteredEntries.first?.id
-            hoveredID = nil
+            highlight.reset(to: filteredEntries.first?.id)
         }
     }
 
@@ -188,7 +166,12 @@ struct ClipboardPickerView: View {
                             onSelect: { onSelect(entry) },
                             onDelete: { delete(entry) },
                             onHoverChange: { hovering in
-                                if hovering { hoveredID = entry.id }
+                                // The pointer's own position comes along so a
+                                // hover the list caused by scrolling under a
+                                // resting cursor can be ignored.
+                                if hovering {
+                                    highlight.pointerEntered(entry.id, at: NSEvent.mouseLocation)
+                                }
                             }
                         )
                         // Only the row losing the highlight and the row gaining
@@ -200,7 +183,7 @@ struct ClipboardPickerView: View {
                 .padding(.horizontal, 7)
                 .padding(.vertical, 6)
             }
-            .onChange(of: selectedID) { _, id in
+            .onChange(of: highlight.selectedID) { _, id in
                 guard let id else { return }
                 withAnimation(.easeInOut(duration: 0.12)) {
                     proxy.scrollTo(id, anchor: .center)
@@ -276,12 +259,13 @@ struct ClipboardPickerView: View {
     private func delete(_ entry: ClipboardEntry) {
         let visible = filteredEntries
         // Move the highlight to a neighbour before the row disappears.
-        if previewEntry(in: visible)?.id == entry.id,
+        if highlight.activeEntry(in: visible)?.id == entry.id,
            let index = visible.firstIndex(where: { $0.id == entry.id }) {
             let remaining = visible.filter { $0.id != entry.id }
-            selectedID = remaining.indices.contains(index) ? remaining[index].id : remaining.last?.id
+            highlight.reset(to: remaining.indices.contains(index) ? remaining[index].id : remaining.last?.id)
+        } else {
+            highlight.forgetHover(of: entry.id)
         }
-        if hoveredID == entry.id { hoveredID = nil }
         store.delete(id: entry.id)
     }
 
@@ -321,7 +305,7 @@ struct ClipboardPickerView: View {
             return true
         case 36, 76: // return, enter
             // Paste what the detail pane is showing, hovered or keyboard-selected.
-            if let entry = previewEntry(in: visible) {
+            if let entry = highlight.activeEntry(in: visible) {
                 onSelect(entry)
             }
             return true
@@ -337,12 +321,12 @@ struct ClipboardPickerView: View {
         guard !visible.isEmpty else { return }
         // Step from the row on screen, which may be a hovered one, so the arrow
         // keys never jump back to where the keyboard last was.
-        let current = previewEntry(in: visible)
+        let current = highlight.activeEntry(in: visible)
             .flatMap { entry in visible.firstIndex { $0.id == entry.id } } ?? -1
         let next = min(max(current + offset, 0), visible.count - 1)
-        selectedID = visible[next].id
-        // Keyboard navigation takes over the preview from any stale hover.
-        hoveredID = nil
+        // Keyboard navigation takes the preview over from any stale hover, and
+        // keeps it until the pointer leaves the spot it is resting on.
+        highlight.keyboardSelected(visible[next].id, at: NSEvent.mouseLocation)
     }
 }
 

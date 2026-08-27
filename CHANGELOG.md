@@ -2,6 +2,10 @@
 
 Notable changes to MiniMe, newest first.
 
+## Unreleased
+
+- Keep the arrow keys in charge of the clipboard picker: scrolling the list used to slide a row under the resting cursor and drag the highlight back to it.
+
 ## 1.0.15
 
 - Stop the clipboard picker from freezing on a large clipping: the preview shows the first 4,000 characters and says how many more there are, and Copy still takes the whole thing.
