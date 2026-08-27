@@ -2,7 +2,7 @@
 
 Notable changes to MiniMe, newest first.
 
-## Unreleased
+## 1.0.16
 
 - Keep the arrow keys in charge of the clipboard picker: scrolling the list used to slide a row under the resting cursor and drag the highlight back to it.
 - Hold a Prevent Sleep countdown while the Mac is asleep, so a 10 minute session still has its time left on waking instead of having switched itself off.
