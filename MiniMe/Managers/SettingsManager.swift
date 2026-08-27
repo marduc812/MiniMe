@@ -103,6 +103,12 @@ class SettingsManager: ObservableObject {
     @Published private(set) var activeSleepDuration: SleepDuration? = nil
     private var sleepAssertionID: IOPMAssertionID = .zero
     private var sleepTimer: Timer?
+    /// When the running finite session is due to end. Nil for `.infinite`, which
+    /// has no deadline, and while the Mac is asleep, when the countdown is held.
+    private var sleepDeadline: Date?
+    /// What was left of a finite session when the Mac went to sleep.
+    private var sleepRemainderHeldForSystemSleep: TimeInterval?
+    private var systemSleepObservers: [NSObjectProtocol] = []
 
     /// Which tools are switched on. See `Tool`.
     @Published private(set) var enabledTools: Set<Tool>
@@ -169,6 +175,7 @@ class SettingsManager: ObservableObject {
         activeSleepDuration = duration
 
         if let remaining {
+            sleepDeadline = Date().addingTimeInterval(remaining)
             sleepTimer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
                 Task { @MainActor [weak self] in self?.disablePreventSleep() }
             }
@@ -182,11 +189,70 @@ class SettingsManager: ObservableObject {
     func releaseSleepAssertion() {
         sleepTimer?.invalidate()
         sleepTimer = nil
+        sleepDeadline = nil
+        sleepRemainderHeldForSystemSleep = nil
         if sleepAssertionID != .zero {
             IOPMAssertionRelease(sleepAssertionID)
             sleepAssertionID = .zero
         }
         activeSleepDuration = nil
+    }
+
+    // MARK: - Prevent Sleep across system sleep
+
+    /// Holds the countdown while the Mac sleeps.
+    ///
+    /// A Prevent Sleep session is a promise about how long the display stays up,
+    /// and a Mac with its lid shut is not spending that time. Left alone the
+    /// timer comes due during the sleep, fires the moment the machine wakes, and
+    /// the user finds Prevent Sleep switched off with no idea when it happened —
+    /// so the timer is torn down here and rebuilt with the same time left in
+    /// `systemDidWake`. `now` is injectable for tests.
+    func systemWillSleep(now: Date = Date()) {
+        guard let deadline = sleepDeadline else { return }
+        sleepTimer?.invalidate()
+        sleepTimer = nil
+        sleepDeadline = nil
+        sleepRemainderHeldForSystemSleep = deadline.timeIntervalSince(now)
+    }
+
+    /// Restarts a held countdown with the time it had left, and pushes the
+    /// stored expiry out by however long the Mac was asleep so a relaunch sees
+    /// the same thing. A session that had already run out when the Mac went to
+    /// sleep ends here rather than being revived.
+    func systemDidWake(now: Date = Date()) {
+        guard let remaining = sleepRemainderHeldForSystemSleep else { return }
+        sleepRemainderHeldForSystemSleep = nil
+
+        guard let duration = activeSleepDuration, remaining > 0 else {
+            disablePreventSleep()
+            return
+        }
+
+        sleepDeadline = now.addingTimeInterval(remaining)
+        sleepTimer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.disablePreventSleep() }
+        }
+        saveSleepSession(duration, remaining: remaining, now: now)
+    }
+
+    /// Both halves of a sleep/wake cycle arrive on the main thread, and the
+    /// countdown has to be off the run loop before the machine actually goes
+    /// down, so they are handled where they land rather than hopped onto a task.
+    private func observeSystemSleep() {
+        let center = NSWorkspace.shared.notificationCenter
+        systemSleepObservers = [
+            center.addObserver(
+                forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.systemWillSleep() }
+            },
+            center.addObserver(
+                forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.systemDidWake() }
+            }
+        ]
     }
 
     // MARK: - Prevent Sleep persistence
@@ -210,10 +276,10 @@ class SettingsManager: ObservableObject {
         return PreventSleepSession(duration: duration, remaining: remaining)
     }
 
-    private func saveSleepSession(_ duration: SleepDuration, remaining: TimeInterval?) {
+    private func saveSleepSession(_ duration: SleepDuration, remaining: TimeInterval?, now: Date = Date()) {
         defaults.set(duration.rawValue, forKey: Self.sleepDurationKey)
         if let remaining {
-            defaults.set(Date().timeIntervalSinceReferenceDate + remaining, forKey: Self.sleepExpiryKey)
+            defaults.set(now.timeIntervalSinceReferenceDate + remaining, forKey: Self.sleepExpiryKey)
         } else {
             defaults.removeObject(forKey: Self.sleepExpiryKey)
         }
@@ -279,6 +345,14 @@ class SettingsManager: ObservableObject {
         }
 
         restoreSleepSession()
+        observeSystemSleep()
+    }
+
+    deinit {
+        let center = NSWorkspace.shared.notificationCenter
+        for observer in systemSleepObservers {
+            center.removeObserver(observer)
+        }
     }
 
     private func saveShortcuts() {

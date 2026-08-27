@@ -174,6 +174,82 @@ struct SettingsManagerToolTests {
         #expect(session == nil)
     }
 
+    // MARK: - Prevent Sleep across system sleep
+
+    /// A Mac that is asleep is not burning through a Prevent Sleep session — the
+    /// countdown is there to keep the screen up while you are away from it, so
+    /// the time the lid was shut should not come off it.
+    @Test func aFiniteSessionKeepsItsRemainingTimeAcrossSystemSleep() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.tenMinutes)
+
+        settings.systemWillSleep()
+        let wake = Date().addingTimeInterval(3600) // an hour with the lid shut
+        settings.systemDidWake(now: wake)
+
+        #expect(settings.activeSleepDuration == .tenMinutes)
+
+        let session = SettingsManager.savedSleepSession(in: defaults, now: wake)
+        #expect(session?.duration == .tenMinutes)
+        #expect(abs((session?.remaining ?? 0) - 600) < 5)
+
+        settings.disablePreventSleep()
+    }
+
+    @Test func timeSpentAwakeBeforeSleepStillComesOffTheSession() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.tenMinutes)
+
+        // Two minutes of use, an hour asleep.
+        settings.systemWillSleep(now: Date().addingTimeInterval(120))
+        let wake = Date().addingTimeInterval(3600)
+        settings.systemDidWake(now: wake)
+
+        let session = SettingsManager.savedSleepSession(in: defaults, now: wake)
+        #expect(abs((session?.remaining ?? 0) - 480) < 5)
+
+        settings.disablePreventSleep()
+    }
+
+    @Test func aSessionThatRanOutBeforeSleepIsNotRevivedOnWake() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.tenMinutes)
+
+        settings.systemWillSleep(now: Date().addingTimeInterval(900))
+        settings.systemDidWake(now: Date().addingTimeInterval(1200))
+
+        #expect(settings.activeSleepDuration == nil)
+        #expect(SettingsManager.savedSleepSession(in: defaults) == nil)
+    }
+
+    @Test func anInfiniteSessionIsUntouchedBySystemSleep() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+        settings.enablePreventSleep(.infinite)
+
+        settings.systemWillSleep()
+        settings.systemDidWake(now: Date().addingTimeInterval(86_400))
+
+        #expect(settings.activeSleepDuration == .infinite)
+        #expect(SettingsManager.savedSleepSession(in: defaults)?.duration == .infinite)
+
+        settings.disablePreventSleep()
+    }
+
+    @Test func systemSleepDoesNothingWhenPreventSleepIsOff() {
+        let defaults = scratchDefaults()
+        let settings = SettingsManager(defaults: defaults)
+
+        settings.systemWillSleep()
+        settings.systemDidWake(now: Date().addingTimeInterval(3600))
+
+        #expect(settings.activeSleepDuration == nil)
+        #expect(SettingsManager.savedSleepSession(in: defaults) == nil)
+    }
+
     @Test func anInfiniteSessionNeverRunsOut() {
         let defaults = scratchDefaults()
         let settings = SettingsManager(defaults: defaults)
