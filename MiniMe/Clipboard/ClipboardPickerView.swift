@@ -7,7 +7,8 @@ import SwiftUI
 
 struct ClipboardPickerView: View {
     @ObservedObject var store: ClipboardStore
-    let isEnabled: Bool
+    @ObservedObject var settings: SettingsManager
+    @ObservedObject var presentation: ClipboardPresentation
     let onSelect: (ClipboardEntry) -> Void
     let onClose: () -> Void
     let onOpenSettings: () -> Void
@@ -46,7 +47,7 @@ struct ClipboardPickerView: View {
 
             Divider().opacity(0.5)
 
-            if !isEnabled {
+            if !settings.isEnabled(.clipboard) {
                 disabledState
             } else if visible.isEmpty {
                 emptyState
@@ -84,16 +85,17 @@ struct ClipboardPickerView: View {
             return .handled
         })
         .onAppear {
-            searchFocused = true
-            highlight.reset(to: filteredEntries.first?.id)
-            installKeyMonitor()
+            updatePresentation()
         }
-        .task {
-            // `.task` can still run inside the pass that puts the panel up, so
-            // yielding moves the flip to the next turn of the run loop — by
-            // which point the list is on screen and the preview costs the user
-            // nothing.
+        .onChange(of: presentation.isPresented) { _, _ in
+            updatePresentation()
+        }
+        .task(id: presentation.isPresented) {
+            guard presentation.isPresented else { return }
+            // Give presentation work a chance to run before building the preview.
+            // Yielding is cooperative; it does not guarantee a rendered frame.
             await Task.yield()
+            guard !Task.isCancelled, presentation.isPresented else { return }
             previewReady = true
         }
         .onDisappear(perform: removeKeyMonitor)
@@ -271,9 +273,22 @@ struct ClipboardPickerView: View {
 
     // MARK: - Keyboard
 
+    private func updatePresentation() {
+        removeKeyMonitor()
+        searchFocused = presentation.isPresented
+        previewReady = false
+        if presentation.isPresented {
+            searchText = ""
+            highlight.reset(to: store.entries.first?.id)
+            installKeyMonitor()
+        }
+    }
+
     private func installKeyMonitor() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            handle(event) ? nil : event
+            // A retained, hidden picker must never consume another window's keys.
+            guard presentation.isPresented else { return event }
+            return handle(event) ? nil : event
         }
     }
 
@@ -406,7 +421,8 @@ private extension ClipboardStore {
 #Preview("Populated") {
     ClipboardPickerView(
         store: .mock(),
-        isEnabled: true,
+        settings: SettingsManager(defaults: UserDefaults(suiteName: "ClipboardPreview")!),
+        presentation: ClipboardPresentation(),
         onSelect: { _ in },
         onClose: {},
         onOpenSettings: {}
@@ -419,7 +435,8 @@ private extension ClipboardStore {
             directory: FileManager.default.temporaryDirectory
                 .appendingPathComponent("MiniMePreview-\(UUID().uuidString)", isDirectory: true)
         ),
-        isEnabled: true,
+        settings: SettingsManager(defaults: UserDefaults(suiteName: "ClipboardPreview")!),
+        presentation: ClipboardPresentation(),
         onSelect: { _ in },
         onClose: {},
         onOpenSettings: {}
@@ -427,9 +444,12 @@ private extension ClipboardStore {
 }
 
 #Preview("Disabled") {
-    ClipboardPickerView(
+    let settings = SettingsManager(defaults: UserDefaults(suiteName: "ClipboardDisabledPreview")!)
+    settings.setEnabled(.clipboard, false)
+    return ClipboardPickerView(
         store: .mock(),
-        isEnabled: false,
+        settings: settings,
+        presentation: ClipboardPresentation(),
         onSelect: { _ in },
         onClose: {},
         onOpenSettings: {}
