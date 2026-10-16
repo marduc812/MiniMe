@@ -2,6 +2,11 @@
 
 Notable changes to MiniMe, newest first.
 
+## 1.1.0
+
+- Decode QR codes in screen captures and copy their contents alongside any recognized text.
+- Mention QR code capture in onboarding.
+
 ## 1.0.16
 
 - Keep the arrow keys in charge of the clipboard picker: scrolling the list used to slide a row under the resting cursor and drag the highlight back to it.

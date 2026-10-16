@@ -225,7 +225,7 @@ class ScreenCaptureManager: ObservableObject {
                     recognitionLevel: ocrAccuracy == "fast" ? .fast : .accurate,
                     lineAware: lineAwareOCR
                 )
-                let extractedText = OCREngine().recognizeText(in: croppedImage, options: options)
+                let extractedText = OCREngine().recognizeContent(in: croppedImage, options: options)
 
                 // Update UI on main thread
                 await self?.handleCaptureResult(
@@ -286,7 +286,7 @@ class ScreenCaptureManager: ObservableObject {
             content.body = preview
         } else {
             content.title = "No Text Found"
-            content.body = "No text was detected in the selected area"
+            content.body = "No text or QR code content was detected in the selected area"
         }
         content.sound = .default
 

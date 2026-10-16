@@ -9,6 +9,8 @@
 ## Features
 
 ### OCR & Capture
+
+- **QR codes** - Snip a QR code to copy its decoded content. Selections with text and QR codes copy both.
 - **Quick Screen Capture** - Select any area on screen with a drag gesture and crosshair cursor
 - **Instant OCR** - Text extraction powered by Apple's Vision framework, using the newest recognition revision available on your Mac
 - **Small-Text Upscaling** - Tight selections of small text are automatically upscaled before recognition, dramatically improving accuracy on the cases Vision would otherwise miss

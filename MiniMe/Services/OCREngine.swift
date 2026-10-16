@@ -70,6 +70,55 @@ struct OCROptions {
 
 struct OCREngine {
 
+    /// Recognizes visible text and appends QR payloads without OCR cleanup.
+    func recognizeContent(in image: CGImage, options: OCROptions = .default) -> String {
+        let request = VNDetectBarcodesRequest()
+        request.symbologies = [.qr]
+        do {
+            try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
+        } catch {
+            // QR detection must not prevent ordinary text capture.
+            return recognizeText(in: image, options: options)
+        }
+
+        let codes = (request.results ?? []).filter {
+            guard let payload = $0.payloadStringValue else { return false }
+            return !payload.isEmpty
+        }.sorted {
+            if $0.boundingBox.midY != $1.boundingBox.midY {
+                return $0.boundingBox.midY > $1.boundingBox.midY
+            }
+            return $0.boundingBox.minX < $1.boundingBox.minX
+        }
+
+        // Hide decoded symbols from OCR so their modules cannot add stray text.
+        let textImage = imageWithoutQRCodes(image, boxes: codes.map(\.boundingBox))
+        let text = recognizeText(in: textImage, options: options)
+        let payloads = codes.compactMap(\.payloadStringValue)
+        return ([text].filter { !$0.isEmpty } + payloads).joined(separator: "\n")
+    }
+
+    private func imageWithoutQRCodes(_ image: CGImage, boxes: [CGRect]) -> CGImage {
+        guard !boxes.isEmpty,
+              let context = CGContext(
+                data: nil, width: image.width, height: image.height,
+                bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else { return image }
+
+        let size = CGSize(width: image.width, height: image.height)
+        context.draw(image, in: CGRect(origin: .zero, size: size))
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        for box in boxes {
+            context.fill(CGRect(
+                x: box.minX * size.width, y: box.minY * size.height,
+                width: box.width * size.width, height: box.height * size.height
+            ).integral)
+        }
+        return context.makeImage() ?? image
+    }
+
     /// Recognizes text in `image`, returning the cleaned result (empty if none).
     func recognizeText(in image: CGImage, options: OCROptions = .default) -> String {
         // Thin, wide strips destabilize Vision's detector; pad them vertically

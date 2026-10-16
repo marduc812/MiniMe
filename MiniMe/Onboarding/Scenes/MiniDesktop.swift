@@ -91,7 +91,7 @@ extension Tool {
     var onboardingPurpose: String {
         switch self {
         case .capture:
-            return "Pull text out of anything on screen — a screenshot, a video, a window that won't let you select."
+            return "Snip any area on screen to copy its text and QR code contents to your clipboard. Works with screenshots, videos, and windows that won't let you select text."
         case .clipboard:
             return "Keeps everything you copy, so you can go back and grab it again."
         case .moveMouse:
