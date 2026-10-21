@@ -127,6 +127,7 @@ final class ClipboardPanelController: ObservableObject {
 
         // Our own write must not come back as a new history entry.
         monitor.acknowledgeSelfWrite()
+        store.moveToTop(id: entry.id)
 
         let target = previousApp
         close()

@@ -70,6 +70,45 @@ struct ClipboardStoreTests {
         #expect(store.entries[0].content == .text("item 0"))
     }
 
+    @Test func selectedEntryBecomesMostRecentAcrossStoreInstances() {
+        let directory = makeTempDirectory()
+        let store = ClipboardStore(directory: directory)
+        let selected = ClipboardEntry(content: .text("first"), timestamp: Date(timeIntervalSince1970: 100))
+        let other = ClipboardEntry(content: .text("second"), timestamp: Date(timeIntervalSince1970: 200))
+        let selectedAt = Date(timeIntervalSince1970: 300)
+        store.add(selected)
+        store.add(other)
+
+        store.moveToTop(id: selected.id, at: selectedAt)
+
+        #expect(store.entries.map(\.id) == [selected.id, other.id])
+        #expect(store.entries[0].timestamp == selectedAt)
+
+        let reloaded = ClipboardStore(directory: directory)
+        #expect(reloaded.entries.map(\.id) == [selected.id, other.id])
+        #expect(reloaded.entries[0].timestamp == selectedAt)
+    }
+
+    @Test func selectingImageKeepsItsBlobAndThumbnail() {
+        let store = ClipboardStore(directory: makeTempDirectory())
+        store.writeBlob(Data([0x1]), named: "selected.png")
+        store.writeBlob(Data([0x2]), named: "selected-thumb.png")
+        let selected = ClipboardEntry(
+            content: .image(fileName: "selected.png", pixelWidth: 1, pixelHeight: 1),
+            thumbnailFileName: "selected-thumb.png"
+        )
+        store.add(selected)
+        store.add(ClipboardEntry(content: .text("newer")))
+
+        store.moveToTop(id: selected.id)
+
+        #expect(store.entries.count == 2)
+        #expect(store.entries[0].id == selected.id)
+        #expect(store.entries[0].thumbnailFileName == "selected-thumb.png")
+        #expect(FileManager.default.fileExists(atPath: store.blobURL(named: "selected.png").path))
+        #expect(FileManager.default.fileExists(atPath: store.blobURL(named: "selected-thumb.png").path))
+    }
+
     @Test func identicalImagesAreNotDeduplicated() {
         let store = ClipboardStore(directory: makeTempDirectory())
         store.add(ClipboardEntry(content: .image(fileName: "a.png", pixelWidth: 2, pixelHeight: 2)))

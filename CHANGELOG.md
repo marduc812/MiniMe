@@ -2,6 +2,10 @@
 
 Notable changes to MiniMe, newest first.
 
+## 1.1.1
+
+- Move a selected clipboard item to the top of history and update its timestamp.
+
 ## 1.1.0
 
 - Decode QR codes in screen captures and copy their contents alongside any recognized text.

@@ -92,6 +92,15 @@ final class ClipboardStore: ObservableObject {
         return entry
     }
 
+    /// Marks a selected history entry as the most recent without creating a copy.
+    func moveToTop(id: UUID, at date: Date = Date()) {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        var entry = entries.remove(at: index)
+        entry.timestamp = date
+        entries.insert(entry, at: 0)
+        save()
+    }
+
     func setThumbnail(_ fileName: String, forEntry id: UUID) {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         entries[index].thumbnailFileName = fileName
