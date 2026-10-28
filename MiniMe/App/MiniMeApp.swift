@@ -16,6 +16,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     var onCapture: (() -> Void)?
     var onSettings: (() -> Void)?
     var onClipboard: (() -> Void)?
+    var onTerminate: (() async -> Void)?
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let onTerminate else { return .terminateNow }
+        Task { @MainActor in
+            await onTerminate()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         NotificationCenter.default.post(name: .appShouldShowMenu, object: nil)
@@ -217,6 +227,10 @@ struct MiniMeApp: App {
     }
 
     private func setupAppDelegate() {
+        appDelegate.onTerminate = {
+            self.clipboardMonitor?.stop()
+            await self.clipboardStore.flush()
+        }
         appDelegate.onCapture = {
             self.clipboardPanel.close()
             self.settingsManager.closeSettingsWindow()

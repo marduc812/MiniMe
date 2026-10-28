@@ -75,6 +75,7 @@ struct ClipboardRow: View, Equatable {
     let onHoverChange: (Bool) -> Void
 
     @State private var isHovered = false
+    @State private var isMissing = false
 
     /// Everything the row draws comes from these three; the closures are pure
     /// callbacks over the same `entry`, and `store` is one object for the life
@@ -92,10 +93,6 @@ struct ClipboardRow: View, Equatable {
     }
 
     var body: some View {
-        // Hits the filesystem, so it is resolved once per draw rather than once
-        // for the warning badge and again for the dimming.
-        let isMissing = entry.hasMissingFiles
-
         HStack(spacing: 9) {
             leadingIcon
 
@@ -134,6 +131,15 @@ struct ClipboardRow: View, Equatable {
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
             onHoverChange(hovering)
+        }
+        .task(id: entry.content) {
+            let content = entry.content
+            let missing = await Task.detached(priority: .utility) {
+                guard case .files(let paths) = content else { return false }
+                return !paths.allSatisfy { FileManager.default.fileExists(atPath: $0) }
+            }.value
+            guard !Task.isCancelled else { return }
+            isMissing = missing
         }
         .onTapGesture(perform: onSelect)
         .contextMenu {

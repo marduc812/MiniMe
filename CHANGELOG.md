@@ -5,6 +5,10 @@ Notable changes to MiniMe, newest first.
 ## 1.1.1
 
 - Move a selected clipboard item to the top of history and update its timestamp.
+- Keep the menu bar and Option+C responsive when another app is slow to provide clipboard contents.
+- Process clipboard images and load or save history without blocking the interface.
+- Keep file previews and clipboard paste responsive when a drive is slow or unavailable.
+- Limit clipboard text entries to 4 MiB and images to 40 million pixels to bound memory use.
 
 ## 1.1.0
 

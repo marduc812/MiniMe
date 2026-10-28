@@ -18,6 +18,7 @@ final class ClipboardPanelController: ObservableObject {
     private var panel: KeyablePanel?
     private var clickOutsideMonitor: Any?
     private var previousApp: NSRunningApplication?
+    private var selectionTask: Task<Void, Never>?
     private let presentation = ClipboardPresentation()
 
     var isVisible: Bool { panel?.isVisible == true }
@@ -120,24 +121,28 @@ final class ClipboardPanelController: ObservableObject {
         settings: SettingsManager,
         monitor: ClipboardMonitor
     ) {
-        guard PasteService.shared.writeToPasteboard(entry, store: store) else {
-            NSSound.beep()
-            return
-        }
-
-        // Our own write must not come back as a new history entry.
-        monitor.acknowledgeSelfWrite()
-        store.moveToTop(id: entry.id)
-
+        guard selectionTask == nil else { return }
         let target = previousApp
-        close()
-
-        if PasteService.PickBehavior.from(rawValue: settings.clipboardPickBehavior) == .copyAndPaste {
-            PasteService.shared.paste(into: target)
+        selectionTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.selectionTask = nil }
+            guard await PasteService.shared.writeToPasteboard(entry, store: store) else {
+                if !Task.isCancelled { NSSound.beep() }
+                return
+            }
+            monitor.acknowledgeSelfWrite()
+            store.moveToTop(id: entry.id)
+            self.selectionTask = nil
+            self.close()
+            if PasteService.PickBehavior.from(rawValue: settings.clipboardPickBehavior) == .copyAndPaste {
+                PasteService.shared.paste(into: target)
+            }
         }
     }
 
     func close() {
+        selectionTask?.cancel()
+        selectionTask = nil
         if let clickOutsideMonitor {
             NSEvent.removeMonitor(clickOutsideMonitor)
         }

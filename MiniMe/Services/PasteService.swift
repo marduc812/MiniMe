@@ -42,7 +42,7 @@ final class PasteService {
     /// Writes `entry` to the general pasteboard.
     /// Returns `false` if the entry's backing blob or files no longer exist.
     @discardableResult
-    func writeToPasteboard(_ entry: ClipboardEntry, store: ClipboardStore) -> Bool {
+    func writeToPasteboard(_ entry: ClipboardEntry, store: ClipboardStore) async -> Bool {
         let pasteboard = NSPasteboard.general
 
         switch entry.content {
@@ -51,14 +51,18 @@ final class PasteService {
             return pasteboard.setString(string, forType: .string)
 
         case .image(let fileName, _, _):
-            guard let image = NSImage(contentsOf: store.blobURL(named: fileName)) else { return false }
+            let url = store.blobURL(named: fileName)
+            let data = await Task.detached(priority: .utility) { try? Data(contentsOf: url) }.value
+            guard !Task.isCancelled, let data else { return false }
             pasteboard.clearContents()
-            return pasteboard.writeObjects([image])
+            return pasteboard.setData(data, forType: .png)
 
         case .files(let paths):
             let urls = paths.map { URL(fileURLWithPath: $0) }
-            guard !urls.isEmpty,
-                  urls.allSatisfy({ FileManager.default.fileExists(atPath: $0.path) }) else { return false }
+            let available = await Task.detached(priority: .utility) {
+                !urls.isEmpty && urls.allSatisfy { FileManager.default.fileExists(atPath: $0.path) }
+            }.value
+            guard !Task.isCancelled, available else { return false }
             pasteboard.clearContents()
             return pasteboard.writeObjects(urls as [NSURL])
         }

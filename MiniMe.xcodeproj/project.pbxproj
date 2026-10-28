@@ -6,6 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C110000000000000000000010 = { isa = PBXBuildFile; fileRef = C11000000000000000000000C; };
+		C110000000000000000000011 = { isa = PBXBuildFile; fileRef = C11000000000000000000000D; };
+		C110000000000000000000012 = { isa = PBXBuildFile; fileRef = C11000000000000000000000E; };
+		C110000000000000000000013 = { isa = PBXBuildFile; fileRef = C11000000000000000000000F; };
+		C110000000000000000000014 = { isa = PBXBuildFile; fileRef = C110000000000000000000002; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C110000000000000000000005 = { isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 6; files = (C110000000000000000000014, ); name = "Embed clipboard worker"; runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXContainerItemProxy section */
 		0D19B7872F315BBA00CE8BDE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +33,18 @@
 			remoteGlobalIDString = 0D19B7742F315BB800CE8BDE;
 			remoteInfo = MiniMe;
 		};
+		C110000000000000000000007 = { isa = PBXContainerItemProxy; containerPortal = 0D19B76D2F315BB800CE8BDE; proxyType = 1; remoteGlobalIDString = C110000000000000000000001; remoteInfo = MiniMeClipboardWorker; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		0D19B7752F315BB800CE8BDE /* MiniMe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MiniMe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0D19B7862F315BBA00CE8BDE /* MiniMeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiniMeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0D19B7902F315BBA00CE8BDE /* MiniMeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiniMeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C11000000000000000000000C = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMeClipboardWorker/WorkerEntry.swift; sourceTree = SOURCE_ROOT; };
+		C11000000000000000000000D = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMe/Clipboard/ClipboardReadWorker.swift; sourceTree = SOURCE_ROOT; };
+		C11000000000000000000000E = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMe/Models/ClipboardEntry.swift; sourceTree = SOURCE_ROOT; };
+		C11000000000000000000000F = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMe/Clipboard/ClipboardThumbnailer.swift; sourceTree = SOURCE_ROOT; };
+		C110000000000000000000002 = { isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; path = MiniMeClipboardWorker; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -82,6 +100,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C110000000000000000000004 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -89,6 +108,7 @@
 			isa = PBXGroup;
 			children = (
 				0D19B7772F315BB800CE8BDE /* MiniMe */,
+				C11000000000000000000000B,
 				0D19B7892F315BBA00CE8BDE /* MiniMeTests */,
 				0D19B7932F315BBA00CE8BDE /* MiniMeUITests */,
 				0D19B7762F315BB800CE8BDE /* Products */,
@@ -99,12 +119,14 @@
 			isa = PBXGroup;
 			children = (
 				0D19B7752F315BB800CE8BDE /* MiniMe.app */,
+				C110000000000000000000002,
 				0D19B7862F315BBA00CE8BDE /* MiniMeTests.xctest */,
 				0D19B7902F315BBA00CE8BDE /* MiniMeUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
+		C11000000000000000000000B = { isa = PBXGroup; children = (C11000000000000000000000C, C11000000000000000000000D, C11000000000000000000000E, C11000000000000000000000F, ); name = MiniMeClipboardWorker; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -112,6 +134,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0D19B79A2F315BBB00CE8BDE /* Build configuration list for PBXNativeTarget "MiniMe" */;
 			buildPhases = (
+				C110000000000000000000005,
 				0D19B7712F315BB800CE8BDE /* Sources */,
 				0D19B7722F315BB800CE8BDE /* Frameworks */,
 				0D19B7732F315BB800CE8BDE /* Resources */,
@@ -119,6 +142,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				C110000000000000000000006,
 			);
 			fileSystemSynchronizedGroups = (
 				0D19B7772F315BB800CE8BDE /* MiniMe */,
@@ -176,6 +200,7 @@
 			productReference = 0D19B7902F315BBA00CE8BDE /* MiniMeUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		C110000000000000000000001 = { isa = PBXNativeTarget; buildConfigurationList = C110000000000000000000008; buildPhases = (C110000000000000000000003, C110000000000000000000004, ); buildRules = (); dependencies = (); name = MiniMeClipboardWorker; productName = MiniMeClipboardWorker; productReference = C110000000000000000000002; productType = "com.apple.product-type.tool"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -213,6 +238,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				C110000000000000000000001,
 				0D19B7742F315BB800CE8BDE /* MiniMe */,
 				0D19B7852F315BBA00CE8BDE /* MiniMeTests */,
 				0D19B78F2F315BBA00CE8BDE /* MiniMeUITests */,
@@ -266,6 +292,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C110000000000000000000003 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C110000000000000000000010, C110000000000000000000011, C110000000000000000000012, C110000000000000000000013, ); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -279,6 +306,7 @@
 			target = 0D19B7742F315BB800CE8BDE /* MiniMe */;
 			targetProxy = 0D19B7912F315BBA00CE8BDE /* PBXContainerItemProxy */;
 		};
+		C110000000000000000000006 = { isa = PBXTargetDependency; target = C110000000000000000000001; targetProxy = C110000000000000000000007; };
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -534,6 +562,8 @@
 			};
 			name = Release;
 		};
+		C110000000000000000000009 = { isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = ""; ENABLE_APP_SANDBOX = NO; CODE_SIGN_STYLE = Automatic; CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO; DEVELOPMENT_TEAM = 488DQALT6W; ENABLE_HARDENED_RUNTIME = YES; GENERATE_INFOPLIST_FILE = NO; MACOSX_DEPLOYMENT_TARGET = 14.6; PRODUCT_NAME = MiniMeClipboardWorker; PRODUCT_BUNDLE_IDENTIFIER = com.evaidon.minime.clipboard-worker; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; OTHER_CODE_SIGN_FLAGS = "$(inherited) -i $(PRODUCT_BUNDLE_IDENTIFIER)";}; name = Debug; };
+		C11000000000000000000000A = { isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = MiniMeClipboardWorker/Worker.entitlements; CODE_SIGN_STYLE = Automatic; CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO; DEVELOPMENT_TEAM = 488DQALT6W; ENABLE_HARDENED_RUNTIME = YES; GENERATE_INFOPLIST_FILE = NO; MACOSX_DEPLOYMENT_TARGET = 14.6; PRODUCT_NAME = MiniMeClipboardWorker; PRODUCT_BUNDLE_IDENTIFIER = com.evaidon.minime.clipboard-worker; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; OTHER_CODE_SIGN_FLAGS = "$(inherited) -i $(PRODUCT_BUNDLE_IDENTIFIER)";}; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -573,6 +603,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		C110000000000000000000008 = { isa = XCConfigurationList; buildConfigurations = (C110000000000000000000009, C11000000000000000000000A, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = 0D19B76D2F315BB800CE8BDE /* Project object */;

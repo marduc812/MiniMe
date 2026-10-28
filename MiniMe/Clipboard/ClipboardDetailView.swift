@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import ImageIO
 
 /// Right-hand pane of the clipboard picker: a full preview of the selected
 /// entry (complete text, full-size image, file listing) plus its metadata
@@ -87,25 +88,7 @@ struct ClipboardDetailView: View {
     }
 
     private func fileRow(_ path: String) -> some View {
-        let exists = FileManager.default.fileExists(atPath: path)
-        return HStack(spacing: 8) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: path))
-                .resizable()
-                .frame(width: 26, height: 26)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text((path as NSString).lastPathComponent)
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
-                Text(exists ? (path as NSString).deletingLastPathComponent : "File no longer available")
-                    .font(.system(size: 10))
-                    .foregroundStyle(exists ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.orange))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-        }
-        .opacity(exists ? 1 : 0.6)
-        .padding(6)
+        ClipboardFilePreviewRow(path: path)
     }
 
     // MARK: - Metadata
@@ -248,7 +231,8 @@ private struct LinkedTextView: View {
             .padding(12)
         }
         .task(id: string) {
-            let scanned = await Task.detached { LinkedTextView.linkify(string) }.value
+            let source = string
+            let scanned = await Task.detached { LinkedTextView.linkify(source) }.value
             guard !Task.isCancelled else { return }
             linkified = (string, scanned)
         }
@@ -310,9 +294,56 @@ private struct ImageBlobView: View {
             }
         }
         .task(id: url) {
-            let data = await Task.detached { try? Data(contentsOf: url) }.value
-            guard !Task.isCancelled, let image = data.flatMap(NSImage.init(data:)) else { return }
+            let url = url
+            let image = await Task.detached(priority: .utility) { () -> NSImage? in
+                guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                      let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceCreateThumbnailWithTransform: true,
+                        kCGImageSourceThumbnailMaxPixelSize: 1200
+                      ] as CFDictionary) else { return nil }
+                return NSImage(cgImage: thumbnail, size: .zero)
+            }.value
+            guard !Task.isCancelled, let image else { return }
             loaded = (url, image)
+        }
+    }
+}
+
+/// File metadata can wait for a disconnected volume. Never resolve it in body.
+private struct ClipboardFilePreviewRow: View {
+    let path: String
+    @State private var exists: Bool?
+    @State private var icon: NSImage?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Group {
+                if let icon { Image(nsImage: icon).resizable() }
+                else { Image(systemName: "doc").resizable() }
+            }
+            .frame(width: 26, height: 26)
+            VStack(alignment: .leading, spacing: 1) {
+                Text((path as NSString).lastPathComponent)
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(1)
+                Text(exists == false ? "File no longer available" : (path as NSString).deletingLastPathComponent)
+                    .font(.system(size: 10))
+                    .foregroundStyle(exists == false ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .opacity(exists == false ? 0.6 : 1)
+        .padding(6)
+        .task(id: path) {
+            let path = path
+            let result = await Task.detached(priority: .utility) {
+                (FileManager.default.fileExists(atPath: path), NSWorkspace.shared.icon(forFile: path))
+            }.value
+            guard !Task.isCancelled else { return }
+            exists = result.0
+            icon = result.1
         }
     }
 }

@@ -17,6 +17,16 @@ final class ClipboardStore: ObservableObject {
 
     let blobsDirectory: URL
     private let metadataURL: URL
+    private let io: DispatchQueue
+    private var isLoading = true
+    private var isReplaying = false
+    private var loadedWaiters: [CheckedContinuation<Void, Never>] = []
+    private var pendingMutations: [Mutation] = []
+    private var fileAccess: [UUID: [URL]] = [:]
+
+    private enum Mutation {
+        case add(ClipboardEntry), move(UUID, Date), thumbnail(String, UUID), delete(UUID), clear
+    }
 
     /// Decoded row thumbnails, keyed by blob file name. `ClipboardRow` asks for
     /// its thumbnail every time it draws and decoding a 240pt PNG costs ~0.9 ms,
@@ -31,7 +41,9 @@ final class ClipboardStore: ObservableObject {
         }
     }
 
-    init(directory: URL = ClipboardStore.defaultDirectory(), maxEntries: Int = 200) {
+    init(directory: URL = ClipboardStore.defaultDirectory(), maxEntries: Int = 200,
+         ioQueue: DispatchQueue = DispatchQueue(label: "com.minime.clipboard-store", qos: .utility)) {
+        self.io = ioQueue
         self.blobsDirectory = directory.appendingPathComponent("ClipboardBlobs", isDirectory: true)
         self.metadataURL = directory.appendingPathComponent("clipboard.json")
         self.maxEntries = maxEntries
@@ -39,12 +51,13 @@ final class ClipboardStore: ObservableObject {
         // memory pressure, so this only bounds a pathological growth case.
         self.thumbnailCache.countLimit = 200
 
-        // Creating the blobs directory with intermediates also creates `directory`.
-        try? FileManager.default.createDirectory(at: blobsDirectory, withIntermediateDirectories: true)
-
-        load()
-        evict()
-        sweepOrphanedBlobs()
+        let blobs = blobsDirectory
+        let metadata = metadataURL
+        io.async { [weak self] in
+            try? FileManager.default.createDirectory(at: blobs, withIntermediateDirectories: true)
+            let result = Self.loadHistory(metadata: metadata, blobs: blobs)
+            Task { @MainActor [weak self] in self?.finishLoading(result) }
+        }
     }
 
     nonisolated static func defaultDirectory() -> URL {
@@ -52,6 +65,35 @@ final class ClipboardStore: ObservableObject {
             .urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
         return base.appendingPathComponent("MiniMe", isDirectory: true)
+    }
+
+    deinit {
+        let urls = fileAccess.values.flatMap { $0 }
+        io.async { for url in urls { url.stopAccessingSecurityScopedResource() } }
+    }
+
+    func resolveFileAccess(_ bookmarks: [Data]) async -> [URL] {
+        guard !bookmarks.isEmpty else { return [] }
+        return await withCheckedContinuation { continuation in
+            io.async {
+                let urls = bookmarks.compactMap { bookmark -> URL? in
+                    var stale = false
+                    return try? URL(resolvingBookmarkData: bookmark, options: .withoutUI,
+                                    relativeTo: nil, bookmarkDataIsStale: &stale)
+                }
+                continuation.resume(returning: urls)
+            }
+        }
+    }
+
+    func retainFileAccess(_ urls: [URL], forEntry id: UUID) {
+        guard !urls.isEmpty else { return }
+        releaseFileAccess(fileAccess.updateValue(urls, forKey: id) ?? [])
+    }
+
+    func releaseFileAccess(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        io.async { for url in urls { url.stopAccessingSecurityScopedResource() } }
     }
 
     func blobURL(named fileName: String) -> URL {
@@ -77,6 +119,7 @@ final class ClipboardStore: ObservableObject {
     /// clipboard change is not worth the cost.
     @discardableResult
     func add(_ entry: ClipboardEntry) -> ClipboardEntry {
+        if isLoading { pendingMutations.append(.add(entry)) }
         if !entry.content.isImage,
            let index = entries.firstIndex(where: { $0.content == entry.content }) {
             var existing = entries.remove(at: index)
@@ -94,6 +137,7 @@ final class ClipboardStore: ObservableObject {
 
     /// Marks a selected history entry as the most recent without creating a copy.
     func moveToTop(id: UUID, at date: Date = Date()) {
+        if isLoading { pendingMutations.append(.move(id, date)) }
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         var entry = entries.remove(at: index)
         entry.timestamp = date
@@ -102,12 +146,14 @@ final class ClipboardStore: ObservableObject {
     }
 
     func setThumbnail(_ fileName: String, forEntry id: UUID) {
+        if isLoading { pendingMutations.append(.thumbnail(fileName, id)) }
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         entries[index].thumbnailFileName = fileName
         save()
     }
 
     func delete(id: UUID) {
+        if isLoading { pendingMutations.append(.delete(id)) }
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         let entry = entries.remove(at: index)
         deleteBlobs(for: entry)
@@ -115,19 +161,44 @@ final class ClipboardStore: ObservableObject {
     }
 
     func clearAll() {
+        if isLoading { pendingMutations.append(.clear) }
         for entry in entries { deleteBlobs(for: entry) }
         entries.removeAll()
         save()
     }
 
     @discardableResult
-    func writeBlob(_ data: Data, named fileName: String) -> Bool {
-        do {
-            try data.write(to: blobURL(named: fileName), options: .atomic)
-            return true
-        } catch {
-            print("[ClipboardStore] Failed to write blob \(fileName): \(error)")
-            return false
+    func writeBlob(_ data: Data, named fileName: String) async -> Bool {
+        let url = blobURL(named: fileName)
+        return await withCheckedContinuation { continuation in
+            io.async {
+                do {
+                    try data.write(to: url, options: .atomic)
+                    continuation.resume(returning: true)
+                } catch {
+                    print("[ClipboardStore] Failed to write blob: \(error)")
+                    continuation.resume(returning: false)
+                }
+            }
+        }
+    }
+
+    func removeBlob(named name: String) {
+        thumbnailCache.removeObject(forKey: name as NSString)
+        let url = blobURL(named: name)
+        io.async { try? FileManager.default.removeItem(at: url) }
+    }
+
+    func waitUntilLoaded() async {
+        guard isLoading else { return }
+        await withCheckedContinuation { loadedWaiters.append($0) }
+    }
+
+    /// An asynchronous barrier for termination and persistence tests.
+    func flush() async {
+        await waitUntilLoaded()
+        await withCheckedContinuation { continuation in
+            io.async { continuation.resume() }
         }
     }
 
@@ -147,44 +218,73 @@ final class ClipboardStore: ObservableObject {
     }
 
     private func deleteBlobs(for entry: ClipboardEntry) {
+        releaseFileAccess(fileAccess.removeValue(forKey: entry.id) ?? [])
         for name in blobNames(for: entry) {
-            try? FileManager.default.removeItem(at: blobURL(named: name))
-            thumbnailCache.removeObject(forKey: name as NSString)
+            removeBlob(named: name)
         }
     }
 
-    /// Deletes blob files no entry references. Recovers space after a crash
-    /// between writing a blob and writing the metadata that points at it.
-    private func sweepOrphanedBlobs() {
-        guard let contents = try? FileManager.default.contentsOfDirectory(
-            at: blobsDirectory,
-            includingPropertiesForKeys: nil
-        ) else { return }
-
-        let referenced = Set(entries.flatMap(blobNames(for:)))
-        for url in contents where !referenced.contains(url.lastPathComponent) {
-            try? FileManager.default.removeItem(at: url)
-        }
-    }
-
-    private func load() {
-        guard let data = try? Data(contentsOf: metadataURL) else { return }
-        do {
-            entries = try JSONDecoder().decode([ClipboardEntry].self, from: data)
-        } catch {
-            // Start empty rather than crashing, and leave the file in place so a
-            // decoding regression is recoverable.
-            print("[ClipboardStore] Failed to decode clipboard history: \(error)")
+    nonisolated private static func loadHistory(metadata: URL, blobs: URL) -> [ClipboardEntry] {
+        let entries: [ClipboardEntry]
+        if FileManager.default.fileExists(atPath: metadata.path) {
+            do {
+                entries = try JSONDecoder().decode([ClipboardEntry].self, from: Data(contentsOf: metadata))
+            } catch {
+                // Preserve both metadata and blobs after a decoding failure.
+                print("[ClipboardStore] Failed to load clipboard history: \(error)")
+                return []
+            }
+        } else {
             entries = []
         }
+        let referenced = Set(entries.flatMap { entry -> [String] in
+            var names = [String]()
+            if case .image(let name, _, _) = entry.content { names.append(name) }
+            if let name = entry.thumbnailFileName { names.append(name) }
+            return names
+        })
+        if let contents = try? FileManager.default.contentsOfDirectory(at: blobs, includingPropertiesForKeys: nil) {
+            for url in contents where !referenced.contains(url.lastPathComponent) {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+        return entries
+    }
+
+    private func finishLoading(_ loaded: [ClipboardEntry]) {
+        let mutations = pendingMutations
+        pendingMutations.removeAll()
+        isLoading = false
+        isReplaying = true
+        entries = loaded
+        for mutation in mutations {
+            switch mutation {
+            case .add(let entry): add(entry)
+            case .move(let id, let date): moveToTop(id: id, at: date)
+            case .thumbnail(let name, let id): setThumbnail(name, forEntry: id)
+            case .delete(let id): delete(id: id)
+            case .clear: clearAll()
+            }
+        }
+        evict()
+        isReplaying = false
+        if !mutations.isEmpty || entries.count != loaded.count { save() }
+        let waiters = loadedWaiters
+        loadedWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
     }
 
     private func save() {
-        do {
-            let data = try JSONEncoder().encode(entries)
-            try data.write(to: metadataURL, options: .atomic)
-        } catch {
-            print("[ClipboardStore] Failed to save clipboard history: \(error)")
+        guard !isLoading, !isReplaying else { return }
+        let snapshot = entries
+        let url = metadataURL
+        io.async {
+            do {
+                let data = try JSONEncoder().encode(snapshot)
+                try data.write(to: url, options: .atomic)
+            } catch {
+                print("[ClipboardStore] Failed to save clipboard history: \(error)")
+            }
         }
     }
 }
